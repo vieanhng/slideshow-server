@@ -41,6 +41,15 @@ const MIME = {
   ".mov": "video/quicktime"
 };
 
+const sseClients = new Set();
+
+function broadcast() {
+  const data = "event: state-changed\ndata: {}\n\n";
+  for (const res of sseClients) {
+    try { res.write(data); } catch { sseClients.delete(res); }
+  }
+}
+
 function loadEnvFile() {
   const envFile = path.join(__dirname, ".env");
   if (!fs.existsSync(envFile)) return;
@@ -88,6 +97,7 @@ function readDb() {
 function writeDb(db) {
   fs.mkdirSync(DATA_DIR, { recursive: true });
   fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2));
+  broadcast();
 }
 
 function sendJson(res, status, payload) {
@@ -296,6 +306,23 @@ async function handleApi(req, res, pathname) {
 
     if (req.method === "GET" && pathname === "/api/state") {
       return sendJson(res, 200, readDb());
+    }
+
+    if (req.method === "GET" && pathname === "/api/events") {
+      res.writeHead(200, {
+        "content-type": "text/event-stream",
+        "cache-control": "no-cache",
+        "connection": "keep-alive",
+        "x-accel-buffering": "no"
+      });
+      res.write(": connected\n\n");
+      sseClients.add(res);
+      const heartbeat = setInterval(() => { res.write(": heartbeat\n\n"); }, 25000);
+      req.on("close", () => {
+        clearInterval(heartbeat);
+        sseClients.delete(res);
+      });
+      return;
     }
 
     if (req.method === "PUT" && pathname === "/api/settings") {

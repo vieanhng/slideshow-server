@@ -354,4 +354,16 @@ async function refresh() {
 }
 
 loadState().then(next);
-window.setInterval(refresh, 3000);
+
+function connectSSE() {
+  if (!window.EventSource) {
+    // Fallback cho browser không hỗ trợ SSE
+    window.setInterval(refresh, 3000);
+    return;
+  }
+
+  const es = new EventSource("/api/events");
+  es.addEventListener("state-changed", () => refresh());
+}
+
+connectSSE();

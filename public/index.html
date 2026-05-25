@@ -23,6 +23,12 @@
               <p class="mt-1 text-sm text-slate-500">Kéo thả để đổi thứ tự phát từ trên xuống dưới.</p>
             </div>
             <div class="flex flex-wrap items-center gap-2">
+              <span id="playlistSelectedCount" class="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-sm font-semibold text-slate-600">0 đã chọn</span>
+              <button id="selectAllPlaylist" class="h-9 rounded-lg border border-slate-300 px-3 text-sm font-semibold text-slate-700 hover:bg-slate-50" type="button">Chọn tất cả</button>
+              <button id="clearPlaylistSelection" class="h-9 rounded-lg border border-slate-300 px-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50" type="button" disabled>Bỏ chọn</button>
+              <button id="deleteSelectedPlaylist" class="h-9 rounded-lg border border-red-200 px-3 text-sm font-semibold text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50" type="button" disabled>Xóa đã chọn</button>
+              <button id="clearPlaylist" class="h-9 rounded-lg border border-red-200 px-3 text-sm font-semibold text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50" type="button" disabled>Xóa tất cả</button>
+              <div class="h-5 w-px bg-slate-200"></div>
               <div class="flex overflow-hidden rounded-lg border border-slate-300 bg-white">
                 <span class="grid place-items-center bg-slate-50 px-3 text-sm font-semibold text-slate-500">Giây</span>
                 <input id="bulkDuration" class="h-9 w-20 border-0 px-3 text-sm outline-none" type="number" min="1" step="1" placeholder="10">
@@ -114,6 +120,43 @@
                 <input id="backgroundBlur" class="h-5 w-5 rounded border-slate-300 text-emerald-700 focus:ring-emerald-200" type="checkbox">
                 Hiệu ứng blur nền
               </label>
+              <div class="grid gap-3 md:col-span-2">
+                <div class="h-px bg-slate-100"></div>
+                <label class="grid gap-1.5 text-sm font-semibold text-slate-600">
+                  Màn hình chờ (khi không có playlist)
+                  <select id="idleScreenType" class="h-10 rounded-lg border border-slate-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100">
+                    <option value="none">Không có (text mặc định)</option>
+                    <option value="color">Màu sắc tùy chỉnh</option>
+                    <option value="image">Ảnh / Video (URL trực tiếp)</option>
+                    <option value="url">Trang web (iframe)</option>
+                    <option value="text">Văn bản tùy chỉnh</option>
+                  </select>
+                </label>
+                <div id="idleColorField" class="hidden">
+                  <label class="grid gap-1.5 text-sm font-semibold text-slate-600">
+                    Màu nền chờ
+                    <input id="idleColorValue" class="h-10 w-20 rounded-lg border border-slate-300 p-1" type="color" value="#0f172a">
+                  </label>
+                </div>
+                <div id="idleImageField" class="hidden">
+                  <label class="grid gap-1.5 text-sm font-semibold text-slate-600">
+                    URL ảnh hoặc video
+                    <input id="idleImageValue" class="h-10 rounded-lg border border-slate-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100" type="url" placeholder="https://example.com/banner.jpg">
+                  </label>
+                </div>
+                <div id="idleUrlField" class="hidden">
+                  <label class="grid gap-1.5 text-sm font-semibold text-slate-600">
+                    URL trang web
+                    <input id="idleUrlValue" class="h-10 rounded-lg border border-slate-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100" type="url" placeholder="https://example.com/screen">
+                  </label>
+                </div>
+                <div id="idleTextField" class="hidden">
+                  <label class="grid gap-1.5 text-sm font-semibold text-slate-600">
+                    Văn bản hiển thị
+                    <textarea id="idleTextValue" class="min-h-20 rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100" placeholder="Hệ thống đang chờ nội dung..." rows="3"></textarea>
+                  </label>
+                </div>
+              </div>
             </div>
           </section>
         </div>

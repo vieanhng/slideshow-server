@@ -21,7 +21,8 @@ const DEFAULT_SETTINGS = {
   transitionEffect: "fade",
   transitionSeconds: 0.7,
   showFileName: true,
-  backgroundBlur: false
+  backgroundBlur: false,
+  idleScreen: { type: "none", value: "" }
 };
 
 const MIME = {
@@ -312,7 +313,13 @@ async function handleApi(req, res, pathname) {
           ? Math.min(3, Math.max(0, transitionSeconds))
           : db.settings.transitionSeconds,
         showFileName: input.showFileName !== false,
-        backgroundBlur: input.backgroundBlur === true
+        backgroundBlur: input.backgroundBlur === true,
+        idleScreen: {
+          type: ["none", "color", "image", "url", "text"].includes(input.idleScreen?.type)
+            ? input.idleScreen.type
+            : (db.settings.idleScreen?.type || "none"),
+          value: String(input.idleScreen?.value ?? db.settings.idleScreen?.value ?? "").trim()
+        }
       };
       writeDb(db);
       return sendJson(res, 200, db);

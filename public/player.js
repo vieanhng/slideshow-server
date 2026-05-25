@@ -46,14 +46,69 @@ function findCurrentItem() {
 
 function showEmpty() {
   stage.innerHTML = "";
+  currentItem = null;
+  currentMedia = null;
+  nowPlaying.textContent = "";
+  nowPlaying.hidden = true;
+  stopProgress();
+
+  const idle = state.settings.idleScreen || { type: "none", value: "" };
+
+  if (idle.type === "color") {
+    const overlay = document.createElement("div");
+    overlay.className = "idle-color";
+    overlay.style.background = idle.value || "#0f172a";
+    stage.appendChild(overlay);
+    return;
+  }
+
+  if (idle.type === "image") {
+    const ext = (idle.value || "").split("?")[0].toLowerCase();
+    const isVideo = /\.(mp4|webm|mov)$/.test(ext);
+    const layer = document.createElement("div");
+    layer.className = "slide-layer";
+    if (isVideo) {
+      const vid = document.createElement("video");
+      vid.src = idle.value;
+      vid.autoplay = true;
+      vid.muted = true;
+      vid.loop = true;
+      vid.playsInline = true;
+      layer.appendChild(vid);
+    } else {
+      const img = document.createElement("img");
+      img.src = idle.value;
+      img.alt = "";
+      layer.appendChild(img);
+    }
+    stage.appendChild(layer);
+    return;
+  }
+
+  if (idle.type === "url") {
+    const layer = document.createElement("div");
+    layer.className = "slide-layer";
+    const frame = document.createElement("iframe");
+    frame.src = idle.value;
+    frame.title = "Màn hình chờ";
+    layer.appendChild(frame);
+    stage.appendChild(layer);
+    return;
+  }
+
+  if (idle.type === "text" && idle.value) {
+    const empty = document.createElement("div");
+    empty.className = "player-empty idle-text";
+    empty.textContent = idle.value;
+    stage.appendChild(empty);
+    return;
+  }
+
+  // fallback: type === "none" hoặc chưa cấu hình
   const empty = document.createElement("div");
   empty.className = "player-empty";
   empty.textContent = "Playlist chưa có nội dung đang bật.";
   stage.appendChild(empty);
-  currentItem = null;
-  currentMedia = null;
-  nowPlaying.textContent = "";
-  stopProgress();
 }
 
 function transitionMs() {

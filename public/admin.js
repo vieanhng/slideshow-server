@@ -3,7 +3,8 @@ const state = {
   playlist: [],
   settings: {},
   dragIndex: null,
-  selectedAssetIds: new Set()
+  selectedAssetIds: new Set(),
+  selectedPlaylistIndexes: new Set()
 };
 
 const els = {
@@ -30,8 +31,22 @@ const els = {
   clearAssetSelection: document.querySelector("#clearAssetSelection"),
   addSelectedAssets: document.querySelector("#addSelectedAssets"),
   deleteSelectedAssets: document.querySelector("#deleteSelectedAssets"),
+  playlistSelectedCount: document.querySelector("#playlistSelectedCount"),
+  selectAllPlaylist: document.querySelector("#selectAllPlaylist"),
+  clearPlaylistSelection: document.querySelector("#clearPlaylistSelection"),
+  deleteSelectedPlaylist: document.querySelector("#deleteSelectedPlaylist"),
+  clearPlaylist: document.querySelector("#clearPlaylist"),
   savePlaylist: document.querySelector("#savePlaylist"),
   saveSettings: document.querySelector("#saveSettings"),
+  idleScreenType: document.querySelector("#idleScreenType"),
+  idleColorField: document.querySelector("#idleColorField"),
+  idleColorValue: document.querySelector("#idleColorValue"),
+  idleImageField: document.querySelector("#idleImageField"),
+  idleImageValue: document.querySelector("#idleImageValue"),
+  idleUrlField: document.querySelector("#idleUrlField"),
+  idleUrlValue: document.querySelector("#idleUrlValue"),
+  idleTextField: document.querySelector("#idleTextField"),
+  idleTextValue: document.querySelector("#idleTextValue"),
   toast: document.querySelector("#toast")
 };
 
@@ -91,6 +106,25 @@ function updateAssetSelectionControls() {
     : "Ch\u1ecdn t\u1ea5t c\u1ea3";
 }
 
+function prunePlaylistSelection() {
+  for (const index of state.selectedPlaylistIndexes) {
+    if (index >= state.playlist.length) state.selectedPlaylistIndexes.delete(index);
+  }
+}
+
+function updatePlaylistSelectionControls() {
+  const count = state.selectedPlaylistIndexes.size;
+  if (!els.playlistSelectedCount) return;
+  els.playlistSelectedCount.textContent = `${count} \u0111\u00e3 ch\u1ecdn`;
+  els.deleteSelectedPlaylist.disabled = count === 0;
+  els.clearPlaylistSelection.disabled = count === 0;
+  els.clearPlaylist.disabled = state.playlist.length === 0;
+  els.selectAllPlaylist.disabled = state.playlist.length === 0;
+  els.selectAllPlaylist.textContent = count === state.playlist.length && state.playlist.length
+    ? "B\u1ecf ch\u1ecdn t\u1ea5t c\u1ea3"
+    : "Ch\u1ecdn t\u1ea5t c\u1ea3";
+}
+
 function assetPreview(asset) {
   const url = escapeHtml(asset.url);
   if (asset.type === "image") return `<img src="${url}" alt="">`;
@@ -126,27 +160,33 @@ function renderAssets() {
 }
 
 function renderPlaylist() {
+  prunePlaylistSelection();
   if (!state.playlist.length) {
     els.playlist.className = "playlist-list empty-state";
-    els.playlist.textContent = "Chưa có nội dung.";
+    els.playlist.textContent = "Ch\u01b0a c\u00f3 n\u1ed9i dung.";
+    updatePlaylistSelectionControls();
     return;
   }
 
   els.playlist.className = "playlist-list";
   els.playlist.innerHTML = state.playlist.map((item, index) => {
     const asset = assetById(item.assetId);
+    const selected = state.selectedPlaylistIndexes.has(index);
     return `
-      <div class="playlist-item" data-index="${index}">
-        <div class="handle" draggable="true" title="Kéo để sắp xếp">⋮⋮</div>
+      <div class="playlist-item ${selected ? "is-selected" : ""}" data-index="${index}">
+        <label class="flex items-center justify-center">
+          <input class="h-4 w-4 cursor-pointer rounded border-slate-300 text-blue-700" type="checkbox" data-select-playlist="${index}" ${selected ? "checked" : ""}>
+        </label>
+        <div class="handle" draggable="true" title="K\u00e9o \u0111\u1ec3 s\u1eafp x\u1ebfp">⋮⋮</div>
         <div>
           <div class="flex items-center gap-2">
             <span class="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs font-bold text-slate-500">${index + 1}</span>
-            <div class="item-title">${escapeHtml(asset?.name || "Asset đã xóa")}</div>
+            <div class="item-title">${escapeHtml(asset?.name || "Asset \u0111\u00e3 x\u00f3a")}</div>
           </div>
           <div class="item-meta">${escapeHtml(asset?.url || item.assetId)}</div>
         </div>
         <div class="duration-field">
-          <label class="mb-1 block text-xs font-semibold text-slate-500" for="duration-${index}">Giây</label>
+          <label class="mb-1 block text-xs font-semibold text-slate-500" for="duration-${index}">Gi\u00e2y</label>
           <input id="duration-${index}" class="h-9 w-full rounded-lg border border-slate-300 px-2 text-sm outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100" type="number" min="1" value="${item.duration}" data-duration="${index}">
         </div>
         <div class="full-video-field">
@@ -154,25 +194,34 @@ function renderPlaylist() {
             <label class="mb-1 block text-xs font-semibold text-slate-500" for="full-video-${index}">Video</label>
             <label class="flex items-center gap-2 text-xs font-semibold text-slate-600">
               <input id="full-video-${index}" class="h-4 w-4 rounded border-slate-300 text-emerald-700" type="checkbox" ${item.playFullVideo ? "checked" : ""} data-full-video="${index}">
-              Phát hết
+              Ph\u00e1t h\u1ebft
             </label>
           ` : `
             <label class="mb-1 block text-xs font-semibold text-slate-500">Video</label>
-            <div class="text-xs text-slate-500">Không áp dụng</div>
+            <div class="text-xs text-slate-500">Kh\u00f4ng \u00e1p d\u1ee5ng</div>
           `}
         </div>
         <div class="enabled-field">
-          <label class="mb-1 block text-xs font-semibold text-slate-500" for="enabled-${index}">Bật</label>
+          <label class="mb-1 block text-xs font-semibold text-slate-500" for="enabled-${index}">B\u1eadt</label>
           <input id="enabled-${index}" class="h-4 w-4 rounded border-slate-300 text-emerald-700" type="checkbox" ${item.enabled ? "checked" : ""} data-enabled="${index}">
         </div>
-        <div class="playlist-actions flex overflow-hidden rounded-lg border border-slate-300" role="group" aria-label="Sắp xếp playlist">
-          <button class="min-h-9 flex-1 px-2 text-sm font-semibold text-slate-600 hover:bg-slate-50" type="button" data-up="${index}" aria-label="Lên">↑</button>
-          <button class="min-h-9 flex-1 border-l border-slate-300 px-2 text-sm font-semibold text-slate-600 hover:bg-slate-50" type="button" data-down="${index}" aria-label="Xuống">↓</button>
-          <button class="min-h-9 flex-1 border-l border-slate-300 px-2 text-sm font-semibold text-red-700 hover:bg-red-50" type="button" data-remove="${index}" aria-label="Bỏ">×</button>
+        <div class="playlist-actions flex overflow-hidden rounded-lg border border-slate-300" role="group" aria-label="S\u1eafp x\u1ebfp playlist">
+          <button class="min-h-9 flex-1 px-2 text-sm font-semibold text-slate-600 hover:bg-slate-50" type="button" data-up="${index}" aria-label="L\u00ean">\u2191</button>
+          <button class="min-h-9 flex-1 border-l border-slate-300 px-2 text-sm font-semibold text-slate-600 hover:bg-slate-50" type="button" data-down="${index}" aria-label="Xu\u1ed1ng">\u2193</button>
+          <button class="min-h-9 flex-1 border-l border-slate-300 px-2 text-sm font-semibold text-red-700 hover:bg-red-50" type="button" data-remove="${index}" aria-label="B\u1ecf">\u00d7</button>
         </div>
       </div>
     `;
   }).join("");
+  updatePlaylistSelectionControls();
+}
+
+function updateIdleScreenFields() {
+  const type = els.idleScreenType.value;
+  els.idleColorField.classList.toggle("hidden", type !== "color");
+  els.idleImageField.classList.toggle("hidden", type !== "image");
+  els.idleUrlField.classList.toggle("hidden", type !== "url");
+  els.idleTextField.classList.toggle("hidden", type !== "text");
 }
 
 function renderSettings() {
@@ -182,6 +231,14 @@ function renderSettings() {
   els.transitionSeconds.value = state.settings.transitionSeconds ?? 0.7;
   els.showFileName.checked = state.settings.showFileName !== false;
   els.backgroundBlur.checked = state.settings.backgroundBlur === true;
+
+  const idle = state.settings.idleScreen || { type: "none", value: "" };
+  els.idleScreenType.value = idle.type || "none";
+  els.idleColorValue.value = idle.type === "color" ? (idle.value || "#0f172a") : "#0f172a";
+  els.idleImageValue.value = idle.type === "image" ? idle.value : "";
+  els.idleUrlValue.value = idle.type === "url" ? idle.value : "";
+  els.idleTextValue.value = idle.type === "text" ? idle.value : "";
+  updateIdleScreenFields();
 }
 
 function render() {
@@ -359,6 +416,7 @@ els.playlist.addEventListener("click", event => {
   if (remove !== undefined) {
     state.playlist.splice(Number(remove), 1);
   }
+  state.selectedPlaylistIndexes.clear();
   renderPlaylist();
 });
 
@@ -418,10 +476,57 @@ els.playlist.addEventListener("drop", event => {
   nextIndex = Math.max(0, Math.min(state.playlist.length - 1, nextIndex));
   movePlaylistItem(state.dragIndex, nextIndex);
   clearDragState();
+  state.selectedPlaylistIndexes.clear();
   renderPlaylist();
 });
 
 els.playlist.addEventListener("dragend", clearDragState);
+
+els.playlist.addEventListener("change", event => {
+  const checkbox = event.target.closest("[data-select-playlist]");
+  if (!checkbox) return;
+  const index = Number(checkbox.dataset.selectPlaylist);
+  if (checkbox.checked) {
+    state.selectedPlaylistIndexes.add(index);
+  } else {
+    state.selectedPlaylistIndexes.delete(index);
+  }
+  const item = checkbox.closest(".playlist-item");
+  if (item) item.classList.toggle("is-selected", checkbox.checked);
+  updatePlaylistSelectionControls();
+});
+
+els.selectAllPlaylist.addEventListener("click", () => {
+  if (state.selectedPlaylistIndexes.size === state.playlist.length && state.playlist.length) {
+    state.selectedPlaylistIndexes.clear();
+  } else {
+    state.playlist.forEach((_, i) => state.selectedPlaylistIndexes.add(i));
+  }
+  renderPlaylist();
+});
+
+els.clearPlaylistSelection.addEventListener("click", () => {
+  state.selectedPlaylistIndexes.clear();
+  renderPlaylist();
+});
+
+els.deleteSelectedPlaylist.addEventListener("click", () => {
+  const indexes = [...state.selectedPlaylistIndexes].sort((a, b) => b - a);
+  if (!indexes.length) return;
+  if (!confirm(`X\u00f3a ${indexes.length} item kh\u1ecfi playlist?`)) return;
+  syncPlaylistFromInputs();
+  indexes.forEach(i => state.playlist.splice(i, 1));
+  state.selectedPlaylistIndexes.clear();
+  renderPlaylist();
+});
+
+els.clearPlaylist.addEventListener("click", () => {
+  if (!state.playlist.length) return;
+  if (!confirm("X\u00f3a to\u00e0n b\u1ed9 playlist?")) return;
+  state.playlist = [];
+  state.selectedPlaylistIndexes.clear();
+  renderPlaylist();
+});
 
 els.applyBulkDuration.addEventListener("click", () => applyBulkDuration(false));
 
@@ -437,7 +542,16 @@ els.savePlaylist.addEventListener("click", async () => {
   toast("Đã lưu playlist.");
 });
 
+els.idleScreenType.addEventListener("change", updateIdleScreenFields);
+
 els.saveSettings.addEventListener("click", async () => {
+  const idleType = els.idleScreenType.value;
+  const idleValueMap = {
+    color: els.idleColorValue.value,
+    image: els.idleImageValue.value,
+    url: els.idleUrlValue.value,
+    text: els.idleTextValue.value
+  };
   await api("/api/settings", {
     method: "PUT",
     headers: { "content-type": "application/json" },
@@ -447,10 +561,11 @@ els.saveSettings.addEventListener("click", async () => {
       transitionEffect: els.transitionEffect.value,
       transitionSeconds: els.transitionSeconds.value,
       showFileName: els.showFileName.checked,
-      backgroundBlur: els.backgroundBlur.checked
+      backgroundBlur: els.backgroundBlur.checked,
+      idleScreen: { type: idleType, value: idleValueMap[idleType] || "" }
     })
   });
-  toast("Đã lưu cài đặt.");
+  toast("\u0110\u00e3 l\u01b0u c\u00e0i \u0111\u1eb7t.");
 });
 
 api("/api/state").catch(error => toast(error.message));

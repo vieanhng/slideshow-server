@@ -91,7 +91,7 @@ body {
   border-bottom: 1px solid #e7edf4;
   display: grid;
   gap: 12px;
-  grid-template-columns: 44px minmax(0, 1fr) 140px 120px 90px 150px;
+  grid-template-columns: 32px 44px minmax(0, 1fr) 140px 120px 90px 150px;
   padding: 14px 16px;
   position: relative;
   transition: background 160ms ease, box-shadow 160ms ease;
@@ -146,6 +146,15 @@ body {
   bottom: -2px;
 }
 
+.playlist-item.is-selected {
+  background: #eff6ff;
+}
+
+.playlist-item.is-selected:hover {
+  background: #dbeafe;
+  box-shadow: inset 3px 0 0 #93c5fd;
+}
+
 .item-title {
   color: #172033;
   font-weight: 650;
@@ -187,9 +196,9 @@ body {
   will-change: opacity, transform;
 }
 
-.slide-layer > img,
-.slide-layer > video,
-.slide-layer > iframe {
+.slide-layer>img,
+.slide-layer>video,
+.slide-layer>iframe {
   border: 0;
   display: block;
   height: 100%;
@@ -213,8 +222,8 @@ body {
   position: absolute;
 }
 
-.slide-blur-bg > img,
-.slide-blur-bg > video {
+.slide-blur-bg>img,
+.slide-blur-bg>video {
   filter: blur(24px);
   height: 100%;
   object-fit: cover;
@@ -259,6 +268,21 @@ body {
   justify-content: center;
 }
 
+.idle-color {
+  inset: 0;
+  position: absolute;
+}
+
+.idle-text {
+  font-size: clamp(24px, 4vw, 56px);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  max-width: 100%;
+  padding: 40px;
+  text-align: center;
+  white-space: pre-wrap;
+}
+
 .now-playing {
   background: rgb(17 24 39 / 0.72);
   border-radius: 6px;
@@ -294,13 +318,23 @@ body {
 }
 
 @keyframes slideFadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes slideFadeOut {
-  from { opacity: 1; }
-  to { opacity: 0; }
+  from {
+    opacity: 1;
+  }
+
+  to {
+    opacity: 0;
+  }
 }
 
 @keyframes slideMoveIn {
@@ -308,6 +342,7 @@ body {
     opacity: 0;
     transform: translateX(5%);
   }
+
   to {
     opacity: 1;
     transform: translateX(0);
@@ -319,6 +354,7 @@ body {
     opacity: 1;
     transform: translateX(0);
   }
+
   to {
     opacity: 0;
     transform: translateX(-3%);
@@ -330,6 +366,7 @@ body {
     opacity: 0;
     transform: scale(1.035);
   }
+
   to {
     opacity: 1;
     transform: scale(1);
@@ -341,6 +378,7 @@ body {
     opacity: 1;
     transform: scale(1);
   }
+
   to {
     opacity: 0;
     transform: scale(0.985);
@@ -350,13 +388,13 @@ body {
 @media (max-width: 920px) {
   .playlist-item {
     align-items: stretch;
-    grid-template-columns: 40px minmax(0, 1fr);
+    grid-template-columns: 32px 40px minmax(0, 1fr);
   }
 
   .playlist-item .duration-field,
   .playlist-item .full-video-field,
   .playlist-item .enabled-field,
   .playlist-item .playlist-actions {
-    grid-column: 2;
+    grid-column: 3;
   }
 }

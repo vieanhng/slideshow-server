@@ -1,72 +1,86 @@
 <!doctype html>
 <html lang="vi">
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Đăng nhập - Slideshow Server</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="/styles.css">
-  </head>
-  <body class="min-h-screen bg-slate-100 text-slate-900">
-    <main class="grid min-h-screen place-items-center p-6">
-      <section class="w-full max-w-md rounded-lg border border-slate-200 bg-white p-6 shadow-xl">
-        <div class="mb-6 flex items-center gap-3">
-          <span class="grid h-10 w-10 place-items-center rounded-lg bg-blue-50 text-blue-700 ring-1 ring-blue-100">SS</span>
-          <div>
-            <h1 class="text-2xl font-bold tracking-tight">Slideshow Server</h1>
-            <div class="text-sm text-slate-500">Đăng nhập trang quản trị</div>
-          </div>
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Đăng nhập - Slideshow Server</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="icon" type="image/png" href="/favicon/favicon-96x96.png" sizes="96x96" />
+  <link rel="icon" type="image/svg+xml" href="/favicon/favicon.svg" />
+  <link rel="shortcut icon" href="/favicon/favicon.ico" />
+  <link rel="apple-touch-icon" sizes="180x180" href="/favicon/apple-touch-icon.png" />
+  <link rel="manifest" href="/favicon/site.webmanifest" />
+</head>
+
+<body class="min-h-screen bg-slate-100 text-slate-900">
+  <main class="grid min-h-screen place-items-center p-6">
+    <section class="w-full max-w-md rounded-lg border border-slate-200 bg-white p-6 shadow-xl">
+      <div class="mb-6 flex items-center gap-3">
+        <span
+          class="grid h-10 w-10 place-items-center rounded-lg bg-blue-50 text-blue-700 ring-1 ring-blue-100">SS</span>
+        <div>
+          <h1 class="text-2xl font-bold tracking-tight">Slideshow Server</h1>
+          <div class="text-sm text-slate-500">Đăng nhập trang quản trị</div>
         </div>
+      </div>
 
-        <div id="loginMessage" class="mb-4 hidden rounded-lg px-3 py-2 text-sm font-semibold" role="alert"></div>
+      <div id="loginMessage" class="mb-4 hidden rounded-lg px-3 py-2 text-sm font-semibold" role="alert"></div>
 
-        <form id="loginForm" class="grid gap-4">
-          <label class="grid gap-1.5 text-sm font-semibold text-slate-600">
-            User
-            <input id="username" class="h-10 rounded-lg border border-slate-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100" autocomplete="username" required autofocus>
-          </label>
-          <label class="grid gap-1.5 text-sm font-semibold text-slate-600">
-            Password
-            <input id="password" class="h-10 rounded-lg border border-slate-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100" type="password" autocomplete="current-password" required>
-          </label>
-          <button class="h-10 rounded-lg bg-blue-600 px-4 font-semibold text-white hover:bg-blue-700" type="submit">Đăng nhập</button>
-        </form>
+      <form id="loginForm" class="grid gap-4">
+        <label class="grid gap-1.5 text-sm font-semibold text-slate-600">
+          User
+          <input id="username"
+            class="h-10 rounded-lg border border-slate-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+            autocomplete="username" required autofocus>
+        </label>
+        <label class="grid gap-1.5 text-sm font-semibold text-slate-600">
+          Password
+          <input id="password"
+            class="h-10 rounded-lg border border-slate-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+            type="password" autocomplete="current-password" required>
+        </label>
+        <button class="h-10 rounded-lg bg-blue-600 px-4 font-semibold text-white hover:bg-blue-700" type="submit">Đăng
+          nhập</button>
+      </form>
 
-        <a class="mt-4 inline-flex text-sm font-semibold text-blue-700 hover:text-blue-800" href="/player">Mở player</a>
-      </section>
-    </main>
+      <a class="mt-4 inline-flex text-sm font-semibold text-blue-700 hover:text-blue-800" href="/player">Mở player</a>
+    </section>
+  </main>
 
-    <script>
-      const form = document.querySelector("#loginForm");
-      const message = document.querySelector("#loginMessage");
-      const params = new URLSearchParams(location.search);
+  <script>
+    const form = document.querySelector("#loginForm");
+    const message = document.querySelector("#loginMessage");
+    const params = new URLSearchParams(location.search);
 
-      if (params.get("loggedOut")) {
-        message.className = "mb-4 rounded-lg bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-800";
-        message.textContent = "Đã đăng xuất.";
+    if (params.get("loggedOut")) {
+      message.className = "mb-4 rounded-lg bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-800";
+      message.textContent = "Đã đăng xuất.";
+    }
+
+    form.addEventListener("submit", async event => {
+      event.preventDefault();
+      message.className = "mb-4 hidden rounded-lg px-3 py-2 text-sm font-semibold";
+
+      const res = await fetch("/api/login", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          username: document.querySelector("#username").value,
+          password: document.querySelector("#password").value
+        })
+      });
+
+      if (res.ok) {
+        location.href = params.get("next") || "/";
+        return;
       }
 
-      form.addEventListener("submit", async event => {
-        event.preventDefault();
-        message.className = "mb-4 hidden rounded-lg px-3 py-2 text-sm font-semibold";
+      message.className = "mb-4 rounded-lg bg-red-50 px-3 py-2 text-sm font-semibold text-red-800";
+      message.textContent = "Sai user hoặc password.";
+    });
+  </script>
+</body>
 
-        const res = await fetch("/api/login", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({
-            username: document.querySelector("#username").value,
-            password: document.querySelector("#password").value
-          })
-        });
-
-        if (res.ok) {
-          location.href = params.get("next") || "/";
-          return;
-        }
-
-        message.className = "mb-4 rounded-lg bg-red-50 px-3 py-2 text-sm font-semibold text-red-800";
-        message.textContent = "Sai user hoặc password.";
-      });
-    </script>
-  </body>
 </html>

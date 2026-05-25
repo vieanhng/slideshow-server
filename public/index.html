@@ -1,189 +1,257 @@
 <!doctype html>
 <html lang="vi">
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Slideshow Server</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="/styles.css">
-  </head>
-  <body class="min-h-screen bg-slate-100 text-slate-900">
-    <main class="w-full">
-      <div class="grid gap-5 p-5 lg:p-7">
-        <section class="flex flex-wrap items-center justify-end gap-2">
-          <span id="assetCount" class="rounded-full border border-slate-200 bg-white px-3 py-1 text-sm font-semibold text-slate-600 shadow-sm">0 assets</span>
-          <a class="inline-flex h-9 items-center justify-center rounded-lg bg-emerald-700 px-3 text-sm font-semibold text-white shadow-sm hover:bg-emerald-800" href="/player" target="_blank">Mở player</a>
-          <a class="inline-flex h-9 items-center justify-center rounded-lg border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50" href="/logout">Đăng xuất</a>
-        </section>
 
-        <section id="playlistPanel" class="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
-          <div class="flex flex-col gap-3 border-b border-slate-200 px-5 py-4 xl:flex-row xl:items-center xl:justify-between">
-            <div>
-              <h2 class="text-lg font-bold text-slate-950">Playlist</h2>
-              <p class="mt-1 text-sm text-slate-500">Kéo thả để đổi thứ tự phát từ trên xuống dưới.</p>
-            </div>
-            <div class="flex flex-wrap items-center gap-2">
-              <span id="playlistSelectedCount" class="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-sm font-semibold text-slate-600">0 đã chọn</span>
-              <button id="selectAllPlaylist" class="h-9 rounded-lg border border-slate-300 px-3 text-sm font-semibold text-slate-700 hover:bg-slate-50" type="button">Chọn tất cả</button>
-              <button id="clearPlaylistSelection" class="h-9 rounded-lg border border-slate-300 px-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50" type="button" disabled>Bỏ chọn</button>
-              <button id="deleteSelectedPlaylist" class="h-9 rounded-lg border border-red-200 px-3 text-sm font-semibold text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50" type="button" disabled>Xóa đã chọn</button>
-              <button id="clearPlaylist" class="h-9 rounded-lg border border-red-200 px-3 text-sm font-semibold text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50" type="button" disabled>Xóa tất cả</button>
-              <div class="h-5 w-px bg-slate-200"></div>
-              <div class="flex overflow-hidden rounded-lg border border-slate-300 bg-white">
-                <span class="grid place-items-center bg-slate-50 px-3 text-sm font-semibold text-slate-500">Giây</span>
-                <input id="bulkDuration" class="h-9 w-20 border-0 px-3 text-sm outline-none" type="number" min="1" step="1" placeholder="10">
-                <button id="applyBulkDuration" class="border-l border-slate-300 px-3 text-sm font-semibold text-blue-700 hover:bg-blue-50" type="button">Tất cả</button>
-                <button id="applyBulkDurationEnabled" class="border-l border-slate-300 px-3 text-sm font-semibold text-blue-700 hover:bg-blue-50" type="button">Đang bật</button>
-              </div>
-              <button id="savePlaylist" class="h-10 rounded-lg bg-emerald-700 px-4 font-semibold text-white hover:bg-emerald-800" type="button">Lưu playlist</button>
-            </div>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Slideshow Server</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="icon" type="image/png" href="/favicon/favicon-96x96.png" sizes="96x96" />
+  <link rel="icon" type="image/svg+xml" href="/favicon/favicon.svg" />
+  <link rel="shortcut icon" href="/favicon/favicon.ico" />
+  <link rel="apple-touch-icon" sizes="180x180" href="/favicon/apple-touch-icon.png" />
+  <link rel="manifest" href="/favicon/site.webmanifest" />
+</head>
+
+<body class="min-h-screen bg-slate-100 text-slate-900">
+  <main class="w-full">
+    <div class="grid gap-5 p-5 lg:p-7">
+      <section class="flex flex-wrap items-center justify-end gap-2">
+        <span id="assetCount"
+          class="rounded-full border border-slate-200 bg-white px-3 py-1 text-sm font-semibold text-slate-600 shadow-sm">0
+          assets</span>
+        <a class="inline-flex h-9 items-center justify-center rounded-lg bg-emerald-700 px-3 text-sm font-semibold text-white shadow-sm hover:bg-emerald-800"
+          href="/player" target="_blank">Mở player</a>
+        <a class="inline-flex h-9 items-center justify-center rounded-lg border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50"
+          href="/logout">Đăng xuất</a>
+      </section>
+
+      <section id="playlistPanel" class="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+        <div
+          class="flex flex-col gap-3 border-b border-slate-200 px-5 py-4 xl:flex-row xl:items-center xl:justify-between">
+          <div>
+            <h2 class="text-lg font-bold text-slate-950">Playlist</h2>
+            <p class="mt-1 text-sm text-slate-500">Kéo thả để đổi thứ tự phát từ trên xuống dưới.</p>
           </div>
-          <div id="playlist" class="playlist-list empty-state">Chưa có nội dung.</div>
+          <div class="flex flex-wrap items-center gap-2">
+            <span id="playlistSelectedCount"
+              class="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-sm font-semibold text-slate-600">0
+              đã chọn</span>
+            <button id="selectAllPlaylist"
+              class="h-9 rounded-lg border border-slate-300 px-3 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+              type="button">Chọn tất cả</button>
+            <button id="clearPlaylistSelection"
+              class="h-9 rounded-lg border border-slate-300 px-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+              type="button" disabled>Bỏ chọn</button>
+            <button id="deleteSelectedPlaylist"
+              class="h-9 rounded-lg border border-red-200 px-3 text-sm font-semibold text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+              type="button" disabled>Xóa đã chọn</button>
+            <button id="clearPlaylist"
+              class="h-9 rounded-lg border border-red-200 px-3 text-sm font-semibold text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+              type="button" disabled>Xóa tất cả</button>
+            <div class="h-5 w-px bg-slate-200"></div>
+            <div class="flex overflow-hidden rounded-lg border border-slate-300 bg-white">
+              <span class="grid place-items-center bg-slate-50 px-3 text-sm font-semibold text-slate-500">Giây</span>
+              <input id="bulkDuration" class="h-9 w-20 border-0 px-3 text-sm outline-none" type="number" min="1"
+                step="1" placeholder="10">
+              <button id="applyBulkDuration"
+                class="border-l border-slate-300 px-3 text-sm font-semibold text-blue-700 hover:bg-blue-50"
+                type="button">Tất cả</button>
+              <button id="applyBulkDurationEnabled"
+                class="border-l border-slate-300 px-3 text-sm font-semibold text-blue-700 hover:bg-blue-50"
+                type="button">Đang bật</button>
+            </div>
+            <button id="savePlaylist"
+              class="h-10 rounded-lg bg-emerald-700 px-4 font-semibold text-white hover:bg-emerald-800"
+              type="button">Lưu playlist</button>
+          </div>
+        </div>
+        <div id="playlist" class="playlist-list empty-state">Chưa có nội dung.</div>
+      </section>
+
+      <div class="grid gap-5 xl:grid-cols-[minmax(0,0.9fr)_minmax(360px,1.1fr)]">
+        <section id="uploadPanel" class="rounded-lg border border-slate-200 bg-white shadow-sm">
+          <div class="border-b border-slate-200 px-5 py-4">
+            <h2 class="text-lg font-bold text-slate-950">Thêm nội dung</h2>
+            <p class="mt-1 text-sm text-slate-500">Upload file local hoặc thêm URL để phát trên màn hình.</p>
+          </div>
+          <div class="grid gap-5 p-5">
+            <form id="uploadForm" class="grid gap-3">
+              <label class="grid gap-1.5 text-sm font-semibold text-slate-600">
+                Ảnh hoặc video
+                <input id="fileInput"
+                  class="block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm file:mr-3 file:rounded-md file:border-0 file:bg-slate-100 file:px-3 file:py-1.5 file:font-semibold file:text-slate-700"
+                  type="file" accept="image/*,video/*" multiple>
+              </label>
+              <label class="grid gap-1.5 text-sm font-semibold text-slate-600">
+                Folder ảnh/video
+                <input id="folderInput"
+                  class="block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm file:mr-3 file:rounded-md file:border-0 file:bg-slate-100 file:px-3 file:py-1.5 file:font-semibold file:text-slate-700"
+                  type="file" accept="image/*,video/*" multiple webkitdirectory>
+              </label>
+              <button class="h-10 rounded-lg bg-blue-600 px-4 font-semibold text-white hover:bg-blue-700"
+                type="submit">Upload và thêm vào playlist</button>
+            </form>
+
+            <div class="h-px bg-slate-200"></div>
+
+            <form id="urlForm" class="grid gap-3">
+              <label class="grid gap-1.5 text-sm font-semibold text-slate-600">
+                URL ảnh, video hoặc website
+                <input id="urlInput"
+                  class="h-10 rounded-lg border border-slate-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+                  type="url" placeholder="https://example.com/screen">
+              </label>
+              <label class="grid gap-1.5 text-sm font-semibold text-slate-600">
+                Tên hiển thị
+                <input id="nameInput"
+                  class="h-10 rounded-lg border border-slate-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+                  type="text" placeholder="Trang gioi thieu">
+              </label>
+              <button class="h-10 rounded-lg border border-blue-200 px-4 font-semibold text-blue-700 hover:bg-blue-50"
+                type="submit">Thêm URL</button>
+            </form>
+          </div>
         </section>
 
-        <div class="grid gap-5 xl:grid-cols-[minmax(0,0.9fr)_minmax(360px,1.1fr)]">
-          <section id="uploadPanel" class="rounded-lg border border-slate-200 bg-white shadow-sm">
-            <div class="border-b border-slate-200 px-5 py-4">
-              <h2 class="text-lg font-bold text-slate-950">Thêm nội dung</h2>
-              <p class="mt-1 text-sm text-slate-500">Upload file local hoặc thêm URL để phát trên màn hình.</p>
+        <section id="settingsPanel" class="rounded-lg border border-slate-200 bg-white shadow-sm">
+          <div class="flex items-center justify-between gap-3 border-b border-slate-200 px-5 py-4">
+            <div>
+              <h2 class="text-lg font-bold text-slate-950">Cài đặt player</h2>
+              <p class="mt-1 text-sm text-slate-500">Áp dụng sau lần refresh tiếp theo.</p>
             </div>
-            <div class="grid gap-5 p-5">
-              <form id="uploadForm" class="grid gap-3">
-                <label class="grid gap-1.5 text-sm font-semibold text-slate-600">
-                  Ảnh hoặc video
-                  <input id="fileInput" class="block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm file:mr-3 file:rounded-md file:border-0 file:bg-slate-100 file:px-3 file:py-1.5 file:font-semibold file:text-slate-700" type="file" accept="image/*,video/*" multiple>
-                </label>
-                <label class="grid gap-1.5 text-sm font-semibold text-slate-600">
-                  Folder ảnh/video
-                  <input id="folderInput" class="block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm file:mr-3 file:rounded-md file:border-0 file:bg-slate-100 file:px-3 file:py-1.5 file:font-semibold file:text-slate-700" type="file" accept="image/*,video/*" multiple webkitdirectory>
-                </label>
-                <button class="h-10 rounded-lg bg-blue-600 px-4 font-semibold text-white hover:bg-blue-700" type="submit">Upload và thêm vào playlist</button>
-              </form>
-
-              <div class="h-px bg-slate-200"></div>
-
-              <form id="urlForm" class="grid gap-3">
-                <label class="grid gap-1.5 text-sm font-semibold text-slate-600">
-                  URL ảnh, video hoặc website
-                  <input id="urlInput" class="h-10 rounded-lg border border-slate-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100" type="url" placeholder="https://example.com/screen">
-                </label>
-                <label class="grid gap-1.5 text-sm font-semibold text-slate-600">
-                  Tên hiển thị
-                  <input id="nameInput" class="h-10 rounded-lg border border-slate-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100" type="text" placeholder="Trang gioi thieu">
-                </label>
-                <button class="h-10 rounded-lg border border-blue-200 px-4 font-semibold text-blue-700 hover:bg-blue-50" type="submit">Thêm URL</button>
-              </form>
-            </div>
-          </section>
-
-          <section id="settingsPanel" class="rounded-lg border border-slate-200 bg-white shadow-sm">
-            <div class="flex items-center justify-between gap-3 border-b border-slate-200 px-5 py-4">
-              <div>
-                <h2 class="text-lg font-bold text-slate-950">Cài đặt player</h2>
-                <p class="mt-1 text-sm text-slate-500">Áp dụng sau lần refresh tiếp theo.</p>
+            <button id="saveSettings"
+              class="h-9 rounded-lg border border-slate-300 px-3 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+              type="button">Lưu</button>
+          </div>
+          <div class="grid gap-4 p-5 md:grid-cols-2">
+            <label class="grid gap-1.5 text-sm font-semibold text-slate-600">
+              Thời lượng mặc định
+              <div class="flex overflow-hidden rounded-lg border border-slate-300">
+                <input id="defaultDuration" class="h-10 min-w-0 flex-1 border-0 px-3 text-sm outline-none" type="number"
+                  min="1" step="1">
+                <span class="grid place-items-center bg-slate-50 px-3 text-sm text-slate-500">giây</span>
               </div>
-              <button id="saveSettings" class="h-9 rounded-lg border border-slate-300 px-3 text-sm font-semibold text-slate-700 hover:bg-slate-50" type="button">Lưu</button>
-            </div>
-            <div class="grid gap-4 p-5 md:grid-cols-2">
+            </label>
+            <label class="grid gap-1.5 text-sm font-semibold text-slate-600">
+              Màu nền player
+              <input id="background" class="h-10 w-20 rounded-lg border border-slate-300 p-1" type="color">
+            </label>
+            <label class="grid gap-1.5 text-sm font-semibold text-slate-600">
+              Hiệu ứng chuyển slide
+              <select id="transitionEffect"
+                class="h-10 rounded-lg border border-slate-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100">
+                <option value="fade">Fade</option>
+                <option value="slide">Slide</option>
+                <option value="zoom">Zoom</option>
+                <option value="none">Không hiệu ứng</option>
+              </select>
+            </label>
+            <label class="grid gap-1.5 text-sm font-semibold text-slate-600">
+              Thời gian hiệu ứng
+              <div class="flex overflow-hidden rounded-lg border border-slate-300">
+                <input id="transitionSeconds" class="h-10 min-w-0 flex-1 border-0 px-3 text-sm outline-none"
+                  type="number" min="0" max="3" step="0.1">
+                <span class="grid place-items-center bg-slate-50 px-3 text-sm text-slate-500">giây</span>
+              </div>
+            </label>
+            <label class="flex items-center gap-3 text-sm font-semibold text-slate-600 md:col-span-2">
+              <input id="showFileName" class="h-5 w-5 rounded border-slate-300 text-emerald-700 focus:ring-emerald-200"
+                type="checkbox">
+              Hiện tên file trên player
+            </label>
+            <label class="flex items-center gap-3 text-sm font-semibold text-slate-600 md:col-span-2">
+              <input id="backgroundBlur"
+                class="h-5 w-5 rounded border-slate-300 text-emerald-700 focus:ring-emerald-200" type="checkbox">
+              Hiệu ứng blur nền
+            </label>
+            <div class="grid gap-3 md:col-span-2">
+              <div class="h-px bg-slate-100"></div>
               <label class="grid gap-1.5 text-sm font-semibold text-slate-600">
-                Thời lượng mặc định
-                <div class="flex overflow-hidden rounded-lg border border-slate-300">
-                  <input id="defaultDuration" class="h-10 min-w-0 flex-1 border-0 px-3 text-sm outline-none" type="number" min="1" step="1">
-                  <span class="grid place-items-center bg-slate-50 px-3 text-sm text-slate-500">giây</span>
-                </div>
-              </label>
-              <label class="grid gap-1.5 text-sm font-semibold text-slate-600">
-                Màu nền player
-                <input id="background" class="h-10 w-20 rounded-lg border border-slate-300 p-1" type="color">
-              </label>
-              <label class="grid gap-1.5 text-sm font-semibold text-slate-600">
-                Hiệu ứng chuyển slide
-                <select id="transitionEffect" class="h-10 rounded-lg border border-slate-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100">
-                  <option value="fade">Fade</option>
-                  <option value="slide">Slide</option>
-                  <option value="zoom">Zoom</option>
-                  <option value="none">Không hiệu ứng</option>
+                Màn hình chờ (khi không có playlist)
+                <select id="idleScreenType"
+                  class="h-10 rounded-lg border border-slate-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100">
+                  <option value="none">Không có (text mặc định)</option>
+                  <option value="color">Màu sắc tùy chỉnh</option>
+                  <option value="image">Ảnh / Video (URL trực tiếp)</option>
+                  <option value="url">Trang web (iframe)</option>
+                  <option value="text">Văn bản tùy chỉnh</option>
                 </select>
               </label>
-              <label class="grid gap-1.5 text-sm font-semibold text-slate-600">
-                Thời gian hiệu ứng
-                <div class="flex overflow-hidden rounded-lg border border-slate-300">
-                  <input id="transitionSeconds" class="h-10 min-w-0 flex-1 border-0 px-3 text-sm outline-none" type="number" min="0" max="3" step="0.1">
-                  <span class="grid place-items-center bg-slate-50 px-3 text-sm text-slate-500">giây</span>
-                </div>
-              </label>
-              <label class="flex items-center gap-3 text-sm font-semibold text-slate-600 md:col-span-2">
-                <input id="showFileName" class="h-5 w-5 rounded border-slate-300 text-emerald-700 focus:ring-emerald-200" type="checkbox">
-                Hiện tên file trên player
-              </label>
-              <label class="flex items-center gap-3 text-sm font-semibold text-slate-600 md:col-span-2">
-                <input id="backgroundBlur" class="h-5 w-5 rounded border-slate-300 text-emerald-700 focus:ring-emerald-200" type="checkbox">
-                Hiệu ứng blur nền
-              </label>
-              <div class="grid gap-3 md:col-span-2">
-                <div class="h-px bg-slate-100"></div>
+              <div id="idleColorField" class="hidden">
                 <label class="grid gap-1.5 text-sm font-semibold text-slate-600">
-                  Màn hình chờ (khi không có playlist)
-                  <select id="idleScreenType" class="h-10 rounded-lg border border-slate-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100">
-                    <option value="none">Không có (text mặc định)</option>
-                    <option value="color">Màu sắc tùy chỉnh</option>
-                    <option value="image">Ảnh / Video (URL trực tiếp)</option>
-                    <option value="url">Trang web (iframe)</option>
-                    <option value="text">Văn bản tùy chỉnh</option>
-                  </select>
+                  Màu nền chờ
+                  <input id="idleColorValue" class="h-10 w-20 rounded-lg border border-slate-300 p-1" type="color"
+                    value="#0f172a">
                 </label>
-                <div id="idleColorField" class="hidden">
-                  <label class="grid gap-1.5 text-sm font-semibold text-slate-600">
-                    Màu nền chờ
-                    <input id="idleColorValue" class="h-10 w-20 rounded-lg border border-slate-300 p-1" type="color" value="#0f172a">
-                  </label>
-                </div>
-                <div id="idleImageField" class="hidden">
-                  <label class="grid gap-1.5 text-sm font-semibold text-slate-600">
-                    URL ảnh hoặc video
-                    <input id="idleImageValue" class="h-10 rounded-lg border border-slate-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100" type="url" placeholder="https://example.com/banner.jpg">
-                  </label>
-                </div>
-                <div id="idleUrlField" class="hidden">
-                  <label class="grid gap-1.5 text-sm font-semibold text-slate-600">
-                    URL trang web
-                    <input id="idleUrlValue" class="h-10 rounded-lg border border-slate-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100" type="url" placeholder="https://example.com/screen">
-                  </label>
-                </div>
-                <div id="idleTextField" class="hidden">
-                  <label class="grid gap-1.5 text-sm font-semibold text-slate-600">
-                    Văn bản hiển thị
-                    <textarea id="idleTextValue" class="min-h-20 rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100" placeholder="Hệ thống đang chờ nội dung..." rows="3"></textarea>
-                  </label>
-                </div>
+              </div>
+              <div id="idleImageField" class="hidden">
+                <label class="grid gap-1.5 text-sm font-semibold text-slate-600">
+                  URL ảnh hoặc video
+                  <input id="idleImageValue"
+                    class="h-10 rounded-lg border border-slate-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+                    type="url" placeholder="https://example.com/banner.jpg">
+                </label>
+              </div>
+              <div id="idleUrlField" class="hidden">
+                <label class="grid gap-1.5 text-sm font-semibold text-slate-600">
+                  URL trang web
+                  <input id="idleUrlValue"
+                    class="h-10 rounded-lg border border-slate-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+                    type="url" placeholder="https://example.com/screen">
+                </label>
+              </div>
+              <div id="idleTextField" class="hidden">
+                <label class="grid gap-1.5 text-sm font-semibold text-slate-600">
+                  Văn bản hiển thị
+                  <textarea id="idleTextValue"
+                    class="min-h-20 rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+                    placeholder="Hệ thống đang chờ nội dung..." rows="3"></textarea>
+                </label>
               </div>
             </div>
-          </section>
-        </div>
-
-        <section id="libraryPanel" class="rounded-lg border border-slate-200 bg-white shadow-sm">
-          <div class="flex flex-col gap-3 border-b border-slate-200 px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-            <h2 class="text-lg font-bold text-slate-950">Thư viện</h2>
-            <p class="mt-1 text-sm text-slate-500">Asset đã upload hoặc thêm bằng URL.</p>
-          </div>
-            <div class="flex flex-wrap items-center gap-2">
-              <span id="selectedAssetCount" class="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-sm font-semibold text-slate-600">0 &#273;&#227; ch&#7885;n</span>
-              <button id="selectAllAssets" class="h-9 rounded-lg border border-slate-300 px-3 text-sm font-semibold text-slate-700 hover:bg-slate-50" type="button">Ch&#7885;n t&#7845;t c&#7843;</button>
-              <button id="clearAssetSelection" class="h-9 rounded-lg border border-slate-300 px-3 text-sm font-semibold text-slate-700 hover:bg-slate-50" type="button">B&#7887; ch&#7885;n</button>
-              <button id="addSelectedAssets" class="h-9 rounded-lg border border-blue-200 px-3 text-sm font-semibold text-blue-700 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-50" type="button" disabled>Th&#234;m v&#224;o playlist</button>
-              <button id="deleteSelectedAssets" class="h-9 rounded-lg border border-red-200 px-3 text-sm font-semibold text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50" type="button" disabled>X&#243;a &#273;&#227; ch&#7885;n</button>
-            </div>
-          </div>
-          <div class="p-5">
-            <div id="assets" class="asset-grid"></div>
           </div>
         </section>
       </div>
-    </main>
 
-    <div id="toast" class="pointer-events-none fixed bottom-5 left-1/2 z-50 hidden -translate-x-1/2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-xl" role="status"></div>
+      <section id="libraryPanel" class="rounded-lg border border-slate-200 bg-white shadow-sm">
+        <div
+          class="flex flex-col gap-3 border-b border-slate-200 px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <h2 class="text-lg font-bold text-slate-950">Thư viện</h2>
+            <p class="mt-1 text-sm text-slate-500">Asset đã upload hoặc thêm bằng URL.</p>
+          </div>
+          <div class="flex flex-wrap items-center gap-2">
+            <span id="selectedAssetCount"
+              class="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-sm font-semibold text-slate-600">0
+              &#273;&#227; ch&#7885;n</span>
+            <button id="selectAllAssets"
+              class="h-9 rounded-lg border border-slate-300 px-3 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+              type="button">Ch&#7885;n t&#7845;t c&#7843;</button>
+            <button id="clearAssetSelection"
+              class="h-9 rounded-lg border border-slate-300 px-3 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+              type="button">B&#7887; ch&#7885;n</button>
+            <button id="addSelectedAssets"
+              class="h-9 rounded-lg border border-blue-200 px-3 text-sm font-semibold text-blue-700 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-50"
+              type="button" disabled>Th&#234;m v&#224;o playlist</button>
+            <button id="deleteSelectedAssets"
+              class="h-9 rounded-lg border border-red-200 px-3 text-sm font-semibold text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+              type="button" disabled>X&#243;a &#273;&#227; ch&#7885;n</button>
+          </div>
+        </div>
+        <div class="p-5">
+          <div id="assets" class="asset-grid"></div>
+        </div>
+      </section>
+    </div>
+  </main>
 
-    <script src="/admin.js"></script>
-  </body>
+  <div id="toast"
+    class="pointer-events-none fixed bottom-5 left-1/2 z-50 hidden -translate-x-1/2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-xl"
+    role="status"></div>
+
+  <script src="/admin.js"></script>
+</body>
+
 </html>

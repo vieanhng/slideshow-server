@@ -1,0 +1,362 @@
+:root {
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+}
+
+.asset-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+}
+
+.asset-grid:empty::before,
+.empty-state {
+  color: #64748b;
+  display: block;
+  padding: 28px;
+  text-align: center;
+}
+
+.asset-card {
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  overflow: hidden;
+  position: relative;
+  transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+.asset-card.is-selected {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 2px rgb(37 99 235 / 0.16);
+}
+
+.asset-card:hover {
+  border-color: #bfdbfe;
+  box-shadow: 0 8px 24px rgb(15 23 42 / 0.08);
+  transform: translateY(-1px);
+}
+
+.asset-card.is-selected:hover {
+  border-color: #2563eb;
+}
+
+.asset-select {
+  align-items: center;
+  background: rgb(255 255 255 / 0.92);
+  border: 1px solid #dbe4ee;
+  border-radius: 999px;
+  display: flex;
+  font-size: 12px;
+  font-weight: 700;
+  gap: 6px;
+  left: 10px;
+  padding: 5px 8px;
+  position: absolute;
+  top: 10px;
+  z-index: 2;
+}
+
+.thumb {
+  align-items: center;
+  aspect-ratio: 16 / 9;
+  background: #e8edf4;
+  color: #64748b;
+  display: flex;
+  font-weight: 700;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.thumb img,
+.thumb video {
+  height: 100%;
+  object-fit: cover;
+  width: 100%;
+}
+
+.playlist-list {
+  display: grid;
+}
+
+.playlist-item {
+  align-items: center;
+  background: #ffffff;
+  border-bottom: 1px solid #e7edf4;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: 44px minmax(0, 1fr) 140px 120px 90px 150px;
+  padding: 14px 16px;
+  position: relative;
+  transition: background 160ms ease, box-shadow 160ms ease;
+}
+
+.playlist-item:hover {
+  background: #fbfdff;
+  box-shadow: inset 3px 0 0 #bfdbfe;
+}
+
+.playlist-item:last-child {
+  border-bottom: 0;
+}
+
+.handle {
+  align-items: center;
+  background: #f1f5f9;
+  border-radius: 8px;
+  color: #64748b;
+  cursor: grab;
+  display: flex;
+  height: 38px;
+  justify-content: center;
+}
+
+.handle:active {
+  cursor: grabbing;
+}
+
+.playlist-item.dragging {
+  background: #eff6ff;
+  opacity: 0.55;
+}
+
+.playlist-item.drag-over-before::before,
+.playlist-item.drag-over-after::after {
+  background: #2563eb;
+  border-radius: 999px;
+  content: "";
+  height: 3px;
+  left: 16px;
+  position: absolute;
+  right: 16px;
+  z-index: 2;
+}
+
+.playlist-item.drag-over-before::before {
+  top: -2px;
+}
+
+.playlist-item.drag-over-after::after {
+  bottom: -2px;
+}
+
+.item-title {
+  color: #172033;
+  font-weight: 650;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.item-meta {
+  color: #64748b;
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.player-body {
+  background: #0f172a;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.stage {
+  height: 100vh;
+  overflow: hidden;
+  position: relative;
+  width: 100vw;
+}
+
+.slide-layer,
+.player-empty {
+  inset: 0;
+  position: absolute;
+}
+
+.slide-layer {
+  background: inherit;
+  overflow: hidden;
+  will-change: opacity, transform;
+}
+
+.slide-layer > img,
+.slide-layer > video,
+.slide-layer > iframe {
+  border: 0;
+  display: block;
+  height: 100%;
+  object-fit: contain;
+  position: relative;
+  width: 100%;
+  z-index: 1;
+}
+
+.slide-blur-bg {
+  inset: -32px;
+  overflow: hidden;
+  position: absolute;
+  z-index: 0;
+}
+
+.slide-blur-bg::after {
+  background: rgb(0 0 0 / 0.28);
+  content: "";
+  inset: 0;
+  position: absolute;
+}
+
+.slide-blur-bg > img,
+.slide-blur-bg > video {
+  filter: blur(24px);
+  height: 100%;
+  object-fit: cover;
+  transform: scale(1.08);
+  width: 100%;
+}
+
+.stage[data-effect="fade"] .slide-layer.is-enter {
+  animation: slideFadeIn var(--transition-duration, 700ms) ease both;
+}
+
+.stage[data-effect="fade"] .slide-layer.is-exit {
+  animation: slideFadeOut var(--transition-duration, 700ms) ease both;
+}
+
+.stage[data-effect="slide"] .slide-layer.is-enter {
+  animation: slideMoveIn var(--transition-duration, 700ms) cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.stage[data-effect="slide"] .slide-layer.is-exit {
+  animation: slideMoveOut var(--transition-duration, 700ms) cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.stage[data-effect="zoom"] .slide-layer.is-enter {
+  animation: slideZoomIn var(--transition-duration, 700ms) ease both;
+}
+
+.stage[data-effect="zoom"] .slide-layer.is-exit {
+  animation: slideZoomOut var(--transition-duration, 700ms) ease both;
+}
+
+.stage[data-effect="none"] .slide-layer.is-enter,
+.stage[data-effect="none"] .slide-layer.is-exit {
+  animation: none;
+}
+
+.player-empty {
+  align-items: center;
+  color: #d7dee9;
+  display: flex;
+  font-size: 20px;
+  justify-content: center;
+}
+
+.now-playing {
+  background: rgb(17 24 39 / 0.72);
+  border-radius: 6px;
+  bottom: 14px;
+  color: #ffffff;
+  font-size: 13px;
+  left: 12px;
+  max-width: min(520px, calc(100vw - 24px));
+  overflow: hidden;
+  padding: 8px 10px;
+  position: fixed;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.slide-progress {
+  background: rgb(255 255 255 / 0.18);
+  bottom: 0;
+  height: 2px;
+  left: 0;
+  overflow: hidden;
+  position: fixed;
+  right: 0;
+  z-index: 30;
+}
+
+.slide-progress-bar {
+  background: #38bdf8;
+  height: 100%;
+  transform: scaleX(0);
+  transform-origin: left center;
+  width: 100%;
+}
+
+@keyframes slideFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideFadeOut {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+@keyframes slideMoveIn {
+  from {
+    opacity: 0;
+    transform: translateX(5%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideMoveOut {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(-3%);
+  }
+}
+
+@keyframes slideZoomIn {
+  from {
+    opacity: 0;
+    transform: scale(1.035);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes slideZoomOut {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.985);
+  }
+}
+
+@media (max-width: 920px) {
+  .playlist-item {
+    align-items: stretch;
+    grid-template-columns: 40px minmax(0, 1fr);
+  }
+
+  .playlist-item .duration-field,
+  .playlist-item .full-video-field,
+  .playlist-item .enabled-field,
+  .playlist-item .playlist-actions {
+    grid-column: 2;
+  }
+}

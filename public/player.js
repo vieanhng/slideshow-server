@@ -6,7 +6,7 @@ let state = { assets: [], playlist: [], settings: {} };
 let index = 0;
 let timer;
 let cleanupTimer;
-let progressFrame;
+let progressTimer;
 let playbackToken = 0;
 let currentItem = null;
 let currentMedia = null;
@@ -18,6 +18,7 @@ let progressStarted = false;
 const preloadCache = new Map();
 const PRELOAD_AHEAD = 2;   // số item load trước
 const PRELOAD_CACHE_MAX = 6;
+const PROGRESS_TICK_MS = 250;
 
 async function fetchState() {
   const res = await fetch("/api/state", { cache: "no-store" });
@@ -205,8 +206,8 @@ function setProgress(ratio) {
 }
 
 function stopProgress() {
-  window.cancelAnimationFrame(progressFrame);
-  progressFrame = undefined;
+  window.clearTimeout(progressTimer);
+  progressTimer = undefined;
   progressStartedAt = 0;
   progressDurationMs = 0;
   progressStarted = false;
@@ -218,11 +219,11 @@ function tickProgress() {
 
   setProgress((Date.now() - progressStartedAt) / progressDurationMs);
 
-  progressFrame = window.requestAnimationFrame(tickProgress);
+  progressTimer = window.setTimeout(tickProgress, PROGRESS_TICK_MS);
 }
 
 function startProgress(durationMs, elapsedMs = 0) {
-  window.cancelAnimationFrame(progressFrame);
+  window.clearTimeout(progressTimer);
   progressDurationMs = Math.max(1, durationMs);
   progressStartedAt = Date.now() - Math.min(Math.max(0, elapsedMs), progressDurationMs);
   progressStarted = true;
@@ -275,6 +276,7 @@ function scheduleCurrentItem(token, preserveElapsed = false) {
 
 function renderItem(item, token) {
   const asset = item.asset;
+  const isVideo = asset.type === "video";
   const oldLayers = Array.from(stage.querySelectorAll(".slide-layer"));
   const layer = document.createElement("div");
 
@@ -289,7 +291,7 @@ function renderItem(item, token) {
 
   stage.querySelector(".player-empty")?.remove();
   updateNowPlaying();
-  layer.className = "slide-layer is-enter";
+  layer.className = isVideo ? "slide-layer is-video" : "slide-layer is-enter";
   if (blurBackground) layer.appendChild(blurBackground);
   layer.appendChild(media);
   stage.appendChild(layer);
@@ -305,10 +307,11 @@ function renderItem(item, token) {
   }
 
   window.clearTimeout(cleanupTimer);
+  const cleanupDelay = isVideo ? 0 : transitionDuration + 80;
   cleanupTimer = window.setTimeout(() => {
     for (const oldLayer of oldLayers) oldLayer.remove();
     layer.classList.remove("is-enter");
-  }, transitionDuration + 80);
+  }, cleanupDelay);
 
   if (!shouldPlayFullVideo(item)) {
     scheduleCurrentItem(token, false);

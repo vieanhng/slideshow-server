@@ -42,7 +42,7 @@ const MIME = {
 };
 const MEDIA_EXTENSIONS = new Set([".mp4", ".webm", ".mov"]);
 const NO_CACHE_EXTENSIONS = new Set([".html", ".js", ".css"]);
-const MAX_MEDIA_RANGE_CHUNK = 8 * 1024 * 1024;
+const MAX_MEDIA_RANGE_CHUNK = 32 * 1024 * 1024;
 const FILE_STREAM_HIGH_WATER_MARK = 1024 * 1024;
 
 const sseClients = new Set();

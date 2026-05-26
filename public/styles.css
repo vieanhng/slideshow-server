@@ -196,6 +196,11 @@ body {
   will-change: opacity, transform;
 }
 
+.slide-layer.is-video {
+  animation: none;
+  will-change: auto;
+}
+
 .slide-layer>img,
 .slide-layer>video,
 .slide-layer>iframe {

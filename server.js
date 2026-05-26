@@ -41,16 +41,21 @@ const MIME = {
   ".mov": "video/quicktime"
 };
 const MEDIA_EXTENSIONS = new Set([".mp4", ".webm", ".mov"]);
+const NO_CACHE_EXTENSIONS = new Set([".html", ".js", ".css"]);
 const MAX_MEDIA_RANGE_CHUNK = 8 * 1024 * 1024;
 const FILE_STREAM_HIGH_WATER_MARK = 1024 * 1024;
 
 const sseClients = new Set();
 
-function broadcast() {
-  const data = "event: state-changed\ndata: {}\n\n";
+function broadcastEvent(event, payload = {}) {
+  const data = `event: ${event}\ndata: ${JSON.stringify(payload)}\n\n`;
   for (const res of sseClients) {
     try { res.write(data); } catch { sseClients.delete(res); }
   }
+}
+
+function broadcast() {
+  broadcastEvent("state-changed");
 }
 
 function loadEnvFile() {
@@ -125,7 +130,7 @@ function streamFile(req, res, filePath, stat) {
   const range = req.headers.range;
   const headers = {
     "accept-ranges": "bytes",
-    "cache-control": "public, max-age=86400",
+    "cache-control": NO_CACHE_EXTENSIONS.has(ext) ? "no-cache" : "public, max-age=86400",
     "content-type": contentType
   };
 
@@ -421,6 +426,11 @@ async function handleApi(req, res, pathname) {
         sseClients.delete(res);
       });
       return;
+    }
+
+    if (req.method === "POST" && pathname === "/api/player/reload") {
+      broadcastEvent("player-reload", { requestedAt: new Date().toISOString() });
+      return sendJson(res, 200, { ok: true, clients: sseClients.size });
     }
 
     if (req.method === "PUT" && pathname === "/api/settings") {

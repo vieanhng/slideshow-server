@@ -424,6 +424,7 @@ function connectSSE() {
 
   const es = new EventSource("/api/events");
   es.addEventListener("state-changed", () => refresh());
+  es.addEventListener("player-reload", () => window.location.reload());
 }
 
 connectSSE();

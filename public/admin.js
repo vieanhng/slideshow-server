@@ -36,6 +36,7 @@ const els = {
   clearPlaylistSelection: document.querySelector("#clearPlaylistSelection"),
   deleteSelectedPlaylist: document.querySelector("#deleteSelectedPlaylist"),
   clearPlaylist: document.querySelector("#clearPlaylist"),
+  reloadPlayer: document.querySelector("#reloadPlayer"),
   savePlaylist: document.querySelector("#savePlaylist"),
   saveSettings: document.querySelector("#saveSettings"),
   idleScreenType: document.querySelector("#idleScreenType"),
@@ -50,11 +51,36 @@ const els = {
   toast: document.querySelector("#toast")
 };
 
+if (els.reloadPlayer) {
+  els.reloadPlayer.addEventListener("click", requestPlayerReload);
+}
+
 function toast(message) {
   els.toast.textContent = message;
   els.toast.classList.remove("hidden");
   window.clearTimeout(toast.timer);
   toast.timer = window.setTimeout(() => els.toast.classList.add("hidden"), 1800);
+}
+
+async function requestPlayerReload() {
+  const originalText = els.reloadPlayer.textContent;
+  try {
+    els.reloadPlayer.disabled = true;
+    els.reloadPlayer.textContent = "Đang reload...";
+    const res = await fetch("/api/player/reload", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "cache-control": "no-cache" }
+    });
+    const payload = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(payload.error || `Reload failed (${res.status})`);
+    toast(`Đã gửi lệnh reload ${payload.clients ?? 0} player.`);
+  } catch (error) {
+    toast(error.message);
+  } finally {
+    els.reloadPlayer.disabled = false;
+    els.reloadPlayer.textContent = originalText;
+  }
 }
 
 function escapeHtml(value) {

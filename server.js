@@ -363,7 +363,7 @@ async function handleApi(req, res, pathname) {
     }
 
     if (req.method === "POST" && pathname === "/api/assets/upload") {
-      const body = await readBody(req);
+      const body = await readBody(req, Infinity);
       const files = parseMultipart(body, req.headers["content-type"])
         .filter(part => (part.name === "file" || part.name === "files") && part.filename && part.data.length);
       if (!files.length) throw new Error("No file uploaded");
@@ -415,14 +415,14 @@ async function handleApi(req, res, pathname) {
       const knownAssets = new Set(db.assets.map(asset => asset.id));
       db.playlist = Array.isArray(input.playlist)
         ? input.playlist
-            .filter(item => knownAssets.has(item.assetId))
-            .map(item => ({
-              id: item.id || crypto.randomUUID(),
-              assetId: item.assetId,
-              duration: Math.max(1, Number(item.duration) || db.settings.defaultDuration),
-              playFullVideo: item.playFullVideo === true,
-              enabled: item.enabled !== false
-            }))
+          .filter(item => knownAssets.has(item.assetId))
+          .map(item => ({
+            id: item.id || crypto.randomUUID(),
+            assetId: item.assetId,
+            duration: Math.max(1, Number(item.duration) || db.settings.defaultDuration),
+            playFullVideo: item.playFullVideo === true,
+            enabled: item.enabled !== false
+          }))
         : db.playlist;
       writeDb(db);
       return sendJson(res, 200, db);

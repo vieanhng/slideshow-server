@@ -14,6 +14,11 @@ let progressStartedAt = 0;
 let progressDurationMs = 0;
 let progressVideoMode = false;
 
+// Preload cache: url -> { img?: HTMLImageElement, video?: HTMLVideoElement }
+const preloadCache = new Map();
+const PRELOAD_AHEAD = 2;   // số item load trước
+const PRELOAD_CACHE_MAX = 6;
+
 async function fetchState() {
   const res = await fetch("/api/state", { cache: "no-store" });
   return res.json();
@@ -123,21 +128,63 @@ function shouldPlayFullVideo(item) {
   return item?.asset?.type === "video" && item.playFullVideo;
 }
 
-function createMedia(asset) {
+function preloadAsset(asset) {
+  if (!asset || asset.type === "web") return;
+  if (preloadCache.has(asset.url)) return;
+
   if (asset.type === "image") {
-    const image = document.createElement("img");
-    image.src = asset.url;
+    const img = new Image();
+    img.src = asset.url;
+    // Gợi ý browser decode trước để tránh giật khi render
+    img.decode?.().catch(() => {});
+    preloadCache.set(asset.url, { img });
+  } else if (asset.type === "video") {
+    const video = document.createElement("video");
+    video.src = asset.url;
+    video.preload = "auto";
+    video.muted = true;
+    video.playsInline = true;
+    // Không append vào DOM — chỉ buffer trong memory
+    preloadCache.set(asset.url, { video });
+  }
+
+  // Giữ cache không quá PRELOAD_CACHE_MAX entries
+  if (preloadCache.size > PRELOAD_CACHE_MAX) {
+    const firstKey = preloadCache.keys().next().value;
+    preloadCache.delete(firstKey);
+  }
+}
+
+function schedulePreload() {
+  const items = enabledItems();
+  if (!items.length) return;
+  for (let i = 1; i <= PRELOAD_AHEAD; i++) {
+    const nextItem = items[(index - 1 + i) % items.length];
+    if (nextItem) preloadAsset(nextItem.asset);
+  }
+}
+
+function createMedia(asset) {
+  const cached = preloadCache.get(asset.url);
+
+  if (asset.type === "image") {
+    // Dùng element đã preload nếu có, clone để có thể dùng nhiều lần
+    const image = cached?.img ?? new Image();
+    if (!cached?.img) image.src = asset.url;
     image.alt = "";
     return image;
   }
 
   if (asset.type === "video") {
-    const video = document.createElement("video");
-    video.src = asset.url;
+    // Dùng video đã buffer nếu có
+    const video = cached?.video ?? document.createElement("video");
+    if (!cached?.video) {
+      video.src = asset.url;
+      video.preload = "auto";
+    }
     video.autoplay = true;
     video.muted = true;
     video.playsInline = true;
-    video.preload = "auto";
     return video;
   }
 
@@ -328,6 +375,7 @@ function next() {
   index = (index + 1) % items.length;
   playbackToken += 1;
   renderItem(item, playbackToken);
+  schedulePreload();
 }
 
 async function refresh() {
@@ -343,6 +391,7 @@ async function refresh() {
   const updatedCurrent = findCurrentItem();
   if (!updatedCurrent) {
     index = 0;
+    preloadCache.clear();
     next();
     return;
   }

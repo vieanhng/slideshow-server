@@ -12,9 +12,9 @@ let currentItem = null;
 let currentMedia = null;
 let progressStartedAt = 0;
 let progressDurationMs = 0;
-let progressVideoMode = false;
+let progressStarted = false;
 
-// Preload cache: url -> { img?: HTMLImageElement, video?: HTMLVideoElement }
+// Preload cache: url -> { img?: HTMLImageElement }
 const preloadCache = new Map();
 const PRELOAD_AHEAD = 2;   // số item load trước
 const PRELOAD_CACHE_MAX = 6;
@@ -138,14 +138,6 @@ function preloadAsset(asset) {
     // Gợi ý browser decode trước để tránh giật khi render
     img.decode?.().catch(() => {});
     preloadCache.set(asset.url, { img });
-  } else if (asset.type === "video") {
-    const video = document.createElement("video");
-    video.src = asset.url;
-    video.preload = "auto";
-    video.muted = true;
-    video.playsInline = true;
-    // Không append vào DOM — chỉ buffer trong memory
-    preloadCache.set(asset.url, { video });
   }
 
   // Giữ cache không quá PRELOAD_CACHE_MAX entries
@@ -164,7 +156,7 @@ function schedulePreload() {
   }
 }
 
-function createMedia(asset) {
+function createMedia(asset, item) {
   const cached = preloadCache.get(asset.url);
 
   if (asset.type === "image") {
@@ -176,13 +168,10 @@ function createMedia(asset) {
   }
 
   if (asset.type === "video") {
-    // Dùng video đã buffer nếu có
-    const video = cached?.video ?? document.createElement("video");
-    if (!cached?.video) {
-      video.src = asset.url;
-      video.preload = "auto";
-    }
-    video.autoplay = true;
+    const video = document.createElement("video");
+    video.src = asset.url;
+    video.preload = shouldPlayFullVideo(item) ? "auto" : "metadata";
+    video.autoplay = !shouldPlayFullVideo(item);
     video.muted = true;
     video.playsInline = true;
     return video;
@@ -196,6 +185,7 @@ function createMedia(asset) {
 
 function createBlurBackground(asset) {
   if (!state.settings.backgroundBlur || (asset.type !== "image" && asset.type !== "video")) return null;
+  if (asset.type === "video") return null;
 
   const background = document.createElement("div");
   background.className = "slide-blur-bg";
@@ -207,16 +197,6 @@ function createBlurBackground(asset) {
     background.appendChild(image);
     return background;
   }
-
-  const video = document.createElement("video");
-  video.src = asset.url;
-  video.autoplay = true;
-  video.muted = true;
-  video.loop = true;
-  video.playsInline = true;
-  video.preload = "auto";
-  background.appendChild(video);
-  return background;
 }
 
 function setProgress(ratio) {
@@ -229,27 +209,23 @@ function stopProgress() {
   progressFrame = undefined;
   progressStartedAt = 0;
   progressDurationMs = 0;
-  progressVideoMode = false;
+  progressStarted = false;
   setProgress(0);
 }
 
 function tickProgress() {
   if (!progressDurationMs) return;
 
-  if (progressVideoMode && currentMedia && Number.isFinite(currentMedia.duration) && currentMedia.duration > 0) {
-    setProgress(currentMedia.currentTime / currentMedia.duration);
-  } else {
-    setProgress((Date.now() - progressStartedAt) / progressDurationMs);
-  }
+  setProgress((Date.now() - progressStartedAt) / progressDurationMs);
 
   progressFrame = window.requestAnimationFrame(tickProgress);
 }
 
-function startProgress(durationMs, elapsedMs = 0, videoMode = false) {
+function startProgress(durationMs, elapsedMs = 0) {
   window.cancelAnimationFrame(progressFrame);
   progressDurationMs = Math.max(1, durationMs);
   progressStartedAt = Date.now() - Math.min(Math.max(0, elapsedMs), progressDurationMs);
-  progressVideoMode = videoMode;
+  progressStarted = true;
   tickProgress();
 }
 
@@ -275,39 +251,39 @@ function updateNowPlaying() {
 function scheduleCurrentItem(token, preserveElapsed = false) {
   if (!currentItem) return;
 
-  const elapsedMs = preserveElapsed ? Math.max(0, Date.now() - progressStartedAt) : 0;
+  const elapsedMs = preserveElapsed && progressStarted ? Math.max(0, Date.now() - progressStartedAt) : 0;
 
   if (!shouldPlayFullVideo(currentItem)) {
     const durationMs = itemDurationMs(currentItem);
     const remainingMs = Math.max(1, durationMs - elapsedMs);
-    startProgress(durationMs, elapsedMs, false);
+    startProgress(durationMs, elapsedMs);
     scheduleNext(remainingMs, token);
     return;
   }
 
+  window.clearTimeout(timer);
+
   if (currentMedia && Number.isFinite(currentMedia.duration) && currentMedia.duration > 0) {
     const durationMs = Math.max(1, currentMedia.duration * 1000);
-    const mediaElapsedMs = Math.max(0, currentMedia.currentTime * 1000);
-    const remainingMs = Math.max(1, durationMs - mediaElapsedMs);
-    startProgress(durationMs, mediaElapsedMs, true);
-    scheduleNext(remainingMs + 250, token);
+    const mediaElapsedMs = preserveElapsed && progressStarted ? elapsedMs : 0;
+    startProgress(durationMs, mediaElapsedMs);
     return;
   }
 
-  const fallbackMs = itemDurationMs(currentItem);
-  startProgress(fallbackMs, elapsedMs, false);
-  scheduleNext(Math.max(1, fallbackMs - elapsedMs), token);
+  stopProgress();
 }
 
 function renderItem(item, token) {
   const asset = item.asset;
   const oldLayers = Array.from(stage.querySelectorAll(".slide-layer"));
   const layer = document.createElement("div");
-  const media = createMedia(asset);
+
+  currentItem = item;
+
+  const media = createMedia(asset, item);
   const blurBackground = createBlurBackground(asset);
   const transitionDuration = transitionMs();
 
-  currentItem = item;
   currentMedia = media;
   stopProgress();
 
@@ -321,6 +297,11 @@ function renderItem(item, token) {
   for (const oldLayer of oldLayers) {
     oldLayer.classList.remove("is-enter");
     oldLayer.classList.add("is-exit");
+    oldLayer.querySelectorAll("video").forEach(video => {
+      video.pause();
+      video.removeAttribute("src");
+      video.load();
+    });
   }
 
   window.clearTimeout(cleanupTimer);
@@ -334,13 +315,48 @@ function renderItem(item, token) {
     return;
   }
 
-  const scheduleFromVideoDuration = () => {
+  let videoStarted = false;
+  const startFullVideo = () => {
     if (token !== playbackToken) return;
-    scheduleCurrentItem(token, false);
+    if (videoStarted) return;
+    if (!Number.isFinite(media.duration) || media.duration <= 0) return;
+    videoStarted = true;
+    const durationMs = Math.max(1, media.duration * 1000);
+
+    const beginProgressOnPlayback = () => {
+      if (token !== playbackToken) return;
+      startProgress(durationMs, 0);
+    };
+
+    const playFromStart = () => {
+      if (token !== playbackToken) return;
+      media.addEventListener("playing", beginProgressOnPlayback, { once: true });
+      media.play?.().catch(() => {
+        if (token !== playbackToken) return;
+        media.removeEventListener("playing", beginProgressOnPlayback);
+        currentItem = { ...currentItem, playFullVideo: false };
+        scheduleCurrentItem(token, false);
+      });
+    };
+
+    if (media.currentTime > 0.05) {
+      const onSeeked = () => playFromStart();
+      media.addEventListener("seeked", onSeeked, { once: true });
+      try {
+        media.currentTime = 0;
+      } catch {
+        media.removeEventListener("seeked", onSeeked);
+        playFromStart();
+      }
+      return;
+    }
+
+    try { media.currentTime = 0; } catch {}
+    playFromStart();
   };
 
-  media.addEventListener("loadedmetadata", scheduleFromVideoDuration, { once: true });
-  media.addEventListener("durationchange", scheduleFromVideoDuration, { once: true });
+  media.addEventListener("loadedmetadata", startFullVideo);
+  media.addEventListener("durationchange", startFullVideo);
   media.addEventListener("ended", () => {
     if (token !== playbackToken) return;
     setProgress(1);
@@ -352,12 +368,7 @@ function renderItem(item, token) {
     scheduleCurrentItem(token, false);
   }, { once: true });
 
-  if (media.readyState >= 1) scheduleFromVideoDuration();
-  media.play?.().catch(() => {
-    if (token !== playbackToken) return;
-    currentItem = { ...currentItem, playFullVideo: false };
-    scheduleCurrentItem(token, false);
-  });
+  if (media.readyState >= 1) startFullVideo();
 }
 
 function next() {

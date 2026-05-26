@@ -40,6 +40,9 @@ const MIME = {
   ".webm": "video/webm",
   ".mov": "video/quicktime"
 };
+const MEDIA_EXTENSIONS = new Set([".mp4", ".webm", ".mov"]);
+const MAX_MEDIA_RANGE_CHUNK = 8 * 1024 * 1024;
+const FILE_STREAM_HIGH_WATER_MARK = 1024 * 1024;
 
 const sseClients = new Set();
 
@@ -112,6 +115,101 @@ function sendJson(res, status, payload) {
 function sendText(res, status, text) {
   res.writeHead(status, { "content-type": "text/plain; charset=utf-8" });
   res.end(text);
+}
+
+function streamFile(req, res, filePath, stat) {
+  const ext = path.extname(filePath).toLowerCase();
+  const contentType = MIME[ext] || "application/octet-stream";
+  const isMedia = MEDIA_EXTENSIONS.has(ext);
+  const totalSize = stat.size;
+  const range = req.headers.range;
+  const headers = {
+    "accept-ranges": "bytes",
+    "cache-control": "public, max-age=86400",
+    "content-type": contentType
+  };
+
+  if (req.method !== "GET" && req.method !== "HEAD") {
+    res.writeHead(405, { allow: "GET, HEAD" });
+    res.end();
+    return;
+  }
+
+  const pipeFile = options => {
+    const stream = fs.createReadStream(filePath, {
+      highWaterMark: FILE_STREAM_HIGH_WATER_MARK,
+      ...options
+    });
+    stream.on("error", () => {
+      if (res.headersSent) {
+        res.destroy();
+      } else {
+        sendText(res, 500, "Could not read file");
+      }
+    });
+    stream.pipe(res);
+  };
+
+  if (totalSize === 0) {
+    res.writeHead(200, { ...headers, "content-length": 0 });
+    res.end();
+    return;
+  }
+
+  if (!range) {
+    res.writeHead(200, { ...headers, "content-length": totalSize });
+    if (req.method === "HEAD") {
+      res.end();
+    } else {
+      pipeFile();
+    }
+    return;
+  }
+
+  const match = /^bytes=(\d*)-(\d*)$/.exec(range);
+  if (!match) {
+    res.writeHead(416, { ...headers, "content-range": `bytes */${totalSize}` });
+    res.end();
+    return;
+  }
+
+  let start = match[1] === "" ? undefined : Number(match[1]);
+  let end = match[2] === "" ? undefined : Number(match[2]);
+  const hasExplicitEnd = match[2] !== "";
+
+  if (start === undefined) {
+    const suffixLength = end;
+    if (!Number.isFinite(suffixLength) || suffixLength <= 0) {
+      res.writeHead(416, { ...headers, "content-range": `bytes */${totalSize}` });
+      res.end();
+      return;
+    }
+    start = Math.max(totalSize - suffixLength, 0);
+    end = totalSize - 1;
+  } else {
+    end = end === undefined ? totalSize - 1 : end;
+  }
+
+  if (isMedia && !hasExplicitEnd) {
+    end = Math.min(end, start + MAX_MEDIA_RANGE_CHUNK - 1);
+  }
+
+  if (!Number.isFinite(start) || !Number.isFinite(end) || start < 0 || end >= totalSize || start > end) {
+    res.writeHead(416, { ...headers, "content-range": `bytes */${totalSize}` });
+    res.end();
+    return;
+  }
+
+  res.writeHead(206, {
+    ...headers,
+    "content-length": end - start + 1,
+    "content-range": `bytes ${start}-${end}/${totalSize}`
+  });
+  if (req.method === "HEAD") {
+    res.end();
+  } else {
+    pipeFile({ start, end });
+  }
 }
 
 function sendUnauthorized(res, message = "Authentication required") {
@@ -452,9 +550,7 @@ function serveStatic(req, res, pathname) {
     return sendText(res, 404, "Not found");
   }
 
-  const ext = path.extname(filePath).toLowerCase();
-  res.writeHead(200, { "content-type": MIME[ext] || "application/octet-stream" });
-  fs.createReadStream(filePath).pipe(res);
+  streamFile(req, res, filePath, fs.statSync(filePath));
 }
 
 ensureStorage();

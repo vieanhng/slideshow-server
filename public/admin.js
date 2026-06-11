@@ -102,6 +102,14 @@ async function api(path, options = {}) {
   return payload;
 }
 
+async function refreshAssets() {
+  const res = await fetch("/api/state", { cache: "no-store" });
+  const payload = await res.json();
+  if (!res.ok) throw new Error(payload.error || "Request failed");
+  state.assets = Array.isArray(payload.assets) ? payload.assets : state.assets;
+  renderAssets();
+}
+
 function assetById(id) {
   return state.assets.find(asset => asset.id === id);
 }
@@ -158,10 +166,24 @@ function assetPreview(asset) {
   return `<span>WEB</span>`;
 }
 
+function assetMeta(asset) {
+  const parts = [asset.type, asset.source];
+  if (asset.type === "video") parts.push(`HLS: ${asset.hls?.status || "none"}`);
+  return parts.map(escapeHtml).join(" · ");
+}
+
+function canAddAssetToPlaylist(asset) {
+  if (!asset) return false;
+  return asset.type !== "video" || asset.source !== "upload" || asset.hls?.status === "ready";
+}
+
 function renderAssets() {
   pruneAssetSelection();
   els.assetCount.textContent = `${state.assets.length} assets`;
-  els.assets.innerHTML = state.assets.map(asset => `
+  els.assets.innerHTML = state.assets.map(asset => {
+    const canAdd = canAddAssetToPlaylist(asset);
+    const addTitle = canAdd ? "Thêm" : "Video chưa sẵn sàng HLS";
+    return `
     <article class="asset-card bg-white ${state.selectedAssetIds.has(asset.id) ? "is-selected" : ""}">
       <label class="asset-select">
         <input class="h-4 w-4 rounded border-slate-300 text-blue-700" type="checkbox" data-select-asset="${asset.id}" ${state.selectedAssetIds.has(asset.id) ? "checked" : ""}>
@@ -170,9 +192,9 @@ function renderAssets() {
       <div class="thumb">${assetPreview(asset)}</div>
       <div class="grid gap-2 p-3">
         <div class="item-title" title="${escapeHtml(asset.name)}">${escapeHtml(asset.name)}</div>
-        <div class="item-meta mb-3">${escapeHtml(asset.type)} · ${escapeHtml(asset.source)}</div>
+        <div class="item-meta mb-3">${assetMeta(asset)}</div>
         <div class="flex gap-2">
-          <button class="min-h-9 flex-1 rounded-lg border border-blue-200 px-3 text-sm font-semibold text-blue-700 hover:bg-blue-50" type="button" data-add="${asset.id}">
+          <button class="min-h-9 flex-1 rounded-lg border border-blue-200 px-3 text-sm font-semibold text-blue-700 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-50" type="button" data-add="${asset.id}" title="${escapeHtml(addTitle)}" ${canAdd ? "" : "disabled"}>
             Thêm
           </button>
           <button class="min-h-9 rounded-lg border border-red-200 px-3 text-sm font-semibold text-red-700 hover:bg-red-50" type="button" data-delete="${asset.id}" aria-label="Xóa">
@@ -181,7 +203,8 @@ function renderAssets() {
         </div>
       </div>
     </article>
-  `).join("");
+  `;
+  }).join("");
   updateAssetSelectionControls();
 }
 
@@ -320,7 +343,14 @@ function applyBulkDuration(enabledOnly) {
 }
 
 function addAssetsToPlaylist(assetIds) {
-  const ids = assetIds.filter(id => assetById(id));
+  const skipped = [];
+  const ids = assetIds.filter(id => {
+    const asset = assetById(id);
+    if (!asset) return false;
+    if (canAddAssetToPlaylist(asset)) return true;
+    skipped.push(asset);
+    return false;
+  });
   ids.forEach(id => {
     const asset = assetById(id);
     state.playlist.push({
@@ -330,6 +360,7 @@ function addAssetsToPlaylist(assetIds) {
       enabled: true
     });
   });
+  if (skipped.length) toast(`${skipped.length} video chưa sẵn sàng HLS.`);
   return ids.length;
 }
 
@@ -594,4 +625,17 @@ els.saveSettings.addEventListener("click", async () => {
   toast("\u0110\u00e3 l\u01b0u c\u00e0i \u0111\u1eb7t.");
 });
 
+function connectAdminEvents() {
+  if (!window.EventSource) return;
+  const es = new EventSource("/api/events");
+  es.addEventListener("hls-ready", async event => {
+    const payload = JSON.parse(event.data || "{}");
+    try {
+      await refreshAssets();
+    } catch {}
+    toast(`Video "${payload.name || "upload"}" đã sẵn sàng HLS.`);
+  });
+}
+
+connectAdminEvents();
 api("/api/state").catch(error => toast(error.message));

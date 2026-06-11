@@ -18,6 +18,7 @@ let progressStarted = false;
 const preloadCache = new Map();
 const PRELOAD_AHEAD = 2;   // số item load trước
 const PRELOAD_CACHE_MAX = 6;
+const hlsInstances = new WeakMap();
 
 async function fetchState() {
   const res = await fetch("/api/state", { cache: "no-store" });
@@ -128,6 +129,52 @@ function shouldPlayFullVideo(item) {
   return item?.asset?.type === "video" && item.playFullVideo;
 }
 
+function hlsUrl(asset) {
+  return asset?.hls?.status === "ready" && asset.hls.url ? asset.hls.url : "";
+}
+
+function attachVideoSource(video, asset) {
+  const streamUrl = hlsUrl(asset);
+  if (!streamUrl) {
+    video.src = asset.url;
+    return;
+  }
+
+  if (video.canPlayType("application/vnd.apple.mpegurl")) {
+    video.src = streamUrl;
+    return;
+  }
+
+  if (window.Hls?.isSupported?.()) {
+    const hls = new window.Hls({ enableWorker: true });
+    hlsInstances.set(video, hls);
+    hls.loadSource(streamUrl);
+    hls.attachMedia(video);
+    hls.on(window.Hls.Events.ERROR, (_event, data) => {
+      if (!data?.fatal) return;
+      hls.destroy();
+      hlsInstances.delete(video);
+      video.src = asset.url;
+      video.load();
+      if (video.autoplay) video.play?.().catch(() => {});
+    });
+    return;
+  }
+
+  video.src = asset.url;
+}
+
+function cleanupVideo(video) {
+  const hls = hlsInstances.get(video);
+  if (hls) {
+    hls.destroy();
+    hlsInstances.delete(video);
+  }
+  video.pause();
+  video.removeAttribute("src");
+  video.load();
+}
+
 function preloadAsset(asset) {
   if (!asset || asset.type === "web") return;
   if (preloadCache.has(asset.url)) return;
@@ -169,11 +216,11 @@ function createMedia(asset, item) {
 
   if (asset.type === "video") {
     const video = document.createElement("video");
-    video.src = asset.url;
     video.preload = shouldPlayFullVideo(item) ? "auto" : "metadata";
     video.autoplay = !shouldPlayFullVideo(item);
     video.muted = true;
     video.playsInline = true;
+    attachVideoSource(video, asset);
     return video;
   }
 
@@ -297,11 +344,7 @@ function renderItem(item, token) {
   for (const oldLayer of oldLayers) {
     oldLayer.classList.remove("is-enter");
     oldLayer.classList.add("is-exit");
-    oldLayer.querySelectorAll("video").forEach(video => {
-      video.pause();
-      video.removeAttribute("src");
-      video.load();
-    });
+    oldLayer.querySelectorAll("video").forEach(cleanupVideo);
   }
 
   window.clearTimeout(cleanupTimer);

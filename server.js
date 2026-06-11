@@ -2,6 +2,7 @@ const http = require("http");
 const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
+const { spawn } = require("child_process");
 
 loadEnvFile();
 
@@ -10,7 +11,9 @@ const ROOT = __dirname;
 const PUBLIC_DIR = path.join(ROOT, "public");
 const DATA_DIR = path.join(ROOT, "data");
 const UPLOAD_DIR = path.join(ROOT, "uploads");
+const HLS_DIR = path.join(UPLOAD_DIR, "hls");
 const DB_FILE = path.join(DATA_DIR, "db.json");
+const FFMPEG_PATH = process.env.FFMPEG_PATH || "ffmpeg";
 const ADMIN_USER = process.env.ADMIN_USER || "admin";
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "admin";
 const SESSION_SECRET = process.env.SESSION_SECRET || `${ADMIN_USER}:${ADMIN_PASSWORD}:slideshow-session`;
@@ -38,9 +41,11 @@ const MIME = {
   ".svg": "image/svg+xml",
   ".mp4": "video/mp4",
   ".webm": "video/webm",
-  ".mov": "video/quicktime"
+  ".mov": "video/quicktime",
+  ".m3u8": "application/vnd.apple.mpegurl",
+  ".ts": "video/mp2t"
 };
-const MEDIA_EXTENSIONS = new Set([".mp4", ".webm", ".mov"]);
+const MEDIA_EXTENSIONS = new Set([".mp4", ".webm", ".mov", ".m3u8", ".ts"]);
 const NO_CACHE_EXTENSIONS = new Set([".html", ".js", ".css"]);
 const MAX_MEDIA_RANGE_CHUNK = 32 * 1024 * 1024;
 const FILE_STREAM_HIGH_WATER_MARK = 1024 * 1024;
@@ -77,6 +82,7 @@ function loadEnvFile() {
 function ensureStorage() {
   fs.mkdirSync(DATA_DIR, { recursive: true });
   fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+  fs.mkdirSync(HLS_DIR, { recursive: true });
   if (!fs.existsSync(DB_FILE)) {
     writeDb({
       settings: DEFAULT_SETTINGS,
@@ -106,6 +112,15 @@ function writeDb(db) {
   fs.mkdirSync(DATA_DIR, { recursive: true });
   fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2));
   broadcast();
+}
+
+function updateAsset(assetId, updater) {
+  const db = readDb();
+  const asset = db.assets.find(item => item.id === assetId);
+  if (!asset) return null;
+  updater(asset, db);
+  writeDb(db);
+  return asset;
 }
 
 function sendJson(res, status, payload) {
@@ -376,6 +391,131 @@ function displayUploadName(filename) {
   return normalized.split("/").filter(Boolean).join(" / ") || "Upload";
 }
 
+function hlsManifestPath(assetId) {
+  return path.join(HLS_DIR, assetId, "index.m3u8");
+}
+
+function hlsPublicUrl(assetId) {
+  return `/uploads/hls/${assetId}/index.m3u8`;
+}
+
+function removeHlsOutput(assetId) {
+  const dir = path.join(HLS_DIR, assetId);
+  if (!dir.startsWith(HLS_DIR) || !fs.existsSync(dir)) return;
+  fs.rmSync(dir, { recursive: true, force: true });
+}
+
+function startHlsTranscode(asset) {
+  if (!asset || asset.type !== "video" || asset.source !== "upload") return;
+
+  const inputPath = safeJoin(ROOT, asset.url);
+  if (!inputPath || !inputPath.startsWith(UPLOAD_DIR) || !fs.existsSync(inputPath)) {
+    updateAsset(asset.id, item => {
+      item.hls = {
+        ...(item.hls || {}),
+        status: "failed",
+        error: "Source video is missing",
+        updatedAt: new Date().toISOString()
+      };
+    });
+    return;
+  }
+
+  const outputDir = path.join(HLS_DIR, asset.id);
+  removeHlsOutput(asset.id);
+  fs.mkdirSync(outputDir, { recursive: true });
+
+  updateAsset(asset.id, item => {
+    item.hls = {
+      status: "processing",
+      url: hlsPublicUrl(asset.id),
+      updatedAt: new Date().toISOString()
+    };
+  });
+
+  const args = [
+    "-y",
+    "-i", inputPath,
+    "-map", "0:v:0",
+    "-map", "0:a?",
+    "-c:v", "libx264",
+    "-preset", "veryfast",
+    "-crf", "23",
+    "-vf", "format=yuv420p",
+    "-c:a", "aac",
+    "-b:a", "128k",
+    "-hls_time", "4",
+    "-hls_playlist_type", "vod",
+    "-hls_segment_filename", path.join(outputDir, "segment-%03d.ts"),
+    "-f", "hls",
+    hlsManifestPath(asset.id)
+  ];
+
+  const child = spawn(FFMPEG_PATH, args, { windowsHide: true });
+  let stderr = "";
+  let finalized = false;
+  child.stderr.on("data", chunk => {
+    stderr += chunk.toString();
+    if (stderr.length > 4000) stderr = stderr.slice(-4000);
+  });
+
+  child.on("error", error => {
+    finalized = true;
+    removeHlsOutput(asset.id);
+    updateAsset(asset.id, item => {
+      item.hls = {
+        status: "failed",
+        url: hlsPublicUrl(asset.id),
+        error: error.code === "ENOENT"
+          ? `ffmpeg not found. Set FFMPEG_PATH or add ffmpeg to PATH.`
+          : error.message,
+        updatedAt: new Date().toISOString()
+      };
+    });
+  });
+
+  child.on("close", code => {
+    if (finalized) return;
+    finalized = true;
+    if (code === 0 && fs.existsSync(hlsManifestPath(asset.id))) {
+      const readyAsset = updateAsset(asset.id, item => {
+        item.hls = {
+          status: "ready",
+          url: hlsPublicUrl(asset.id),
+          updatedAt: new Date().toISOString()
+        };
+      });
+      if (readyAsset) {
+        broadcastEvent("hls-ready", {
+          assetId: readyAsset.id,
+          name: readyAsset.name,
+          url: readyAsset.hls.url,
+          readyAt: readyAsset.hls.updatedAt
+        });
+      }
+      return;
+    }
+
+    removeHlsOutput(asset.id);
+    updateAsset(asset.id, item => {
+      item.hls = {
+        status: "failed",
+        url: hlsPublicUrl(asset.id),
+        error: stderr.trim() || `ffmpeg exited with code ${code}`,
+        updatedAt: new Date().toISOString()
+      };
+    });
+  });
+}
+
+function resumeHlsTranscodes() {
+  const db = readDb();
+  for (const asset of db.assets) {
+    if (asset.type !== "video" || asset.source !== "upload") continue;
+    if (!asset.hls || ["queued", "processing"].includes(asset.hls.status)) startHlsTranscode(asset);
+  }
+}
+
 function removeAssets(db, ids) {
   const idSet = new Set(ids.map(String).filter(Boolean));
   const removedAssets = db.assets.filter(item => idSet.has(item.id));
@@ -387,6 +527,7 @@ function removeAssets(db, ids) {
     if (asset.source !== "upload") continue;
     const filePath = safeJoin(ROOT, asset.url);
     if (filePath?.startsWith(UPLOAD_DIR) && fs.existsSync(filePath)) fs.unlinkSync(filePath);
+    removeHlsOutput(asset.id);
   }
 
   return removedAssets.length;
@@ -465,7 +606,7 @@ async function handleApi(req, res, pathname) {
       const db = readDb();
       const asset = assetFromUrl(input);
       db.assets.unshift(asset);
-      addToPlaylist(db, asset, input.duration);
+      if (asset.type !== "video") addToPlaylist(db, asset, input.duration);
       writeDb(db);
       return sendJson(res, 201, db);
     }
@@ -478,26 +619,37 @@ async function handleApi(req, res, pathname) {
 
       const db = readDb();
       const createdAssets = [];
+      const videosToTranscode = [];
 
       for (const file of files) {
         const ext = path.extname(file.filename).toLowerCase();
         const storedName = `${Date.now()}-${crypto.randomBytes(6).toString("hex")}${ext}`;
         fs.writeFileSync(path.join(UPLOAD_DIR, storedName), file.data);
+        const type = inferType(file.filename, file.type);
 
         const asset = {
           id: crypto.randomUUID(),
           name: displayUploadName(file.filename),
-          type: inferType(file.filename, file.type),
+          type,
           source: "upload",
           url: `/uploads/${storedName}`,
           createdAt: new Date().toISOString()
         };
+        if (type === "video") {
+          asset.hls = {
+            status: "queued",
+            url: hlsPublicUrl(asset.id),
+            updatedAt: new Date().toISOString()
+          };
+          videosToTranscode.push(asset);
+        }
         createdAssets.push(asset);
-        addToPlaylist(db, asset);
+        if (type !== "video") addToPlaylist(db, asset);
       }
 
       db.assets.unshift(...createdAssets);
       writeDb(db);
+      videosToTranscode.forEach(startHlsTranscode);
       return sendJson(res, 201, db);
     }
 
@@ -564,6 +716,7 @@ function serveStatic(req, res, pathname) {
 }
 
 ensureStorage();
+resumeHlsTranscodes();
 
 const server = http.createServer((req, res) => {
   const { pathname } = new URL(req.url, `http://${req.headers.host}`);
